@@ -2,15 +2,17 @@
 <html lang="bn">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>ভাতঘর হোটেল দৈনিক হিসাব</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ভাতঘর হোটেল POS PRO</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
 body { font-family:'Hind Siliguri',sans-serif; }
 @media print { .no-print { display:none!important; } }
 #loginOverlay { backdrop-filter:blur(8px); }
 .item-row:hover .action-btns { opacity:1; }
+.warning { color:red; font-weight:bold; }
 </style>
 </head>
 <body class="bg-slate-200 min-h-screen p-3">
@@ -18,7 +20,7 @@ body { font-family:'Hind Siliguri',sans-serif; }
 <!-- LOGIN -->
 <div id="loginOverlay" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
   <div class="bg-white p-8 rounded-xl shadow-xl w-80 text-center">
-    <h2 class="text-2xl font-black text-red-700 mb-2">ভাতঘর হোটেল</h2>
+    <h2 class="text-2xl font-black text-red-700 mb-2">ভাতঘর হোটেল ডেইলি লেজার</h2>
     <p class="text-sm mb-4">প্রবেশ কোড দিন</p>
     <input id="pinInput" type="password" maxlength="4" class="w-full border p-3 text-center text-3xl rounded mb-4">
     <button id="loginBtn" class="bg-blue-600 text-white w-full py-3 rounded font-bold">প্রবেশ করুন</button>
@@ -27,7 +29,7 @@ body { font-family:'Hind Siliguri',sans-serif; }
 </div>
 
 <!-- MAIN APP -->
-<div id="mainApp" class="max-w-3xl mx-auto bg-white shadow-xl hidden">
+<div id="mainApp" class="max-w-4xl mx-auto bg-white shadow-xl hidden">
 
 <!-- HEADER -->
 <div class="p-4 border-b text-center">
@@ -42,7 +44,14 @@ body { font-family:'Hind Siliguri',sans-serif; }
 <!-- ACTION BAR -->
 <div class="p-3 flex justify-between bg-slate-100 no-print">
   <button onclick="window.print()" class="bg-slate-700 text-white px-3 py-1 rounded">প্রিন্ট</button>
+  <button id="exportBtn" class="bg-emerald-600 text-white px-3 py-1 rounded">Export CSV</button>
   <button id="logoutBtn" class="bg-red-600 text-white px-3 py-1 rounded">লগআউট</button>
+</div>
+
+<!-- CUSTOM DATE -->
+<div class="p-3 flex gap-2 items-center no-print">
+  <label class="text-xs font-bold">তারিখ:</label>
+  <input type="date" id="customDateInput" class="border p-2 rounded">
 </div>
 
 <!-- ADD ITEM -->
@@ -54,6 +63,8 @@ body { font-family:'Hind Siliguri',sans-serif; }
     <option value="expense">নগদ খরচ</option>
     <option value="due_income">বাকী পাওনা</option>
     <option value="due_expense">বাকী দেনা</option>
+    <option value="staff_salary">স্টাফ বেতন</option>
+    <option value="shop_rent">দোকান ভাড়া</option>
   </select>
   <button id="addBtn" class="bg-blue-600 text-white px-4 rounded">যোগ</button>
 </div>
@@ -70,21 +81,31 @@ body { font-family:'Hind Siliguri',sans-serif; }
   </div>
 </div>
 
-<!-- TOTALS -->
+<!-- DAILY & MONTHLY TOTALS -->
 <div class="grid grid-cols-2 text-center bg-slate-800 text-white p-4">
   <div><p class="text-xs">মোট বিক্রয়</p><p id="totalInc" class="text-lg font-bold">0</p></div>
   <div><p class="text-xs">মোট খরচ</p><p id="totalExp" class="text-lg font-bold">0</p></div>
 </div>
 
-<div class="grid grid-cols-2 text-center bg-slate-900 text-white p-4">
+<div class="grid grid-cols-3 text-center bg-slate-900 text-white p-4">
   <div><p class="text-xs">সাবেক ক্যাশ</p><p id="openingBalance" class="text-lg text-blue-400 font-bold">0</p></div>
   <div><p class="text-xs">আজকের লাভ</p><p id="profitTotal" class="text-lg text-green-400 font-bold">0</p></div>
+  <div><p class="text-xs">মোট ক্যাশ</p><p id="grandTotal" class="text-lg text-yellow-400 font-bold">0</p></div>
 </div>
 
-<div class="bg-black text-yellow-400 text-center p-4">
-  <p class="text-xs">বর্তমানে মোট ক্যাশ</p>
-  <p id="grandTotal" class="text-2xl font-black">0</p>
+<!-- STAFF SALARY & SHOP RENT SUMMARY -->
+<div class="p-4 bg-yellow-100 text-center">
+  <p class="font-bold">স্টাফ বেতন & দোকান ভাড়া</p>
+  <p>ডেইলি স্টাফ বেতন: <span id="dailySalary">0</span></p>
+  <p>মাসিক স্টাফ বেতন: <span id="monthlySalary">0</span></p>
+  <p>ডেইলি দোকান ভাড়া: <span id="dailyRent">0</span></p>
+  <p>মাসিক দোকান ভাড়া: <span id="monthlyRent">0</span></p>
+  <p id="warningSalary" class="warning"></p>
+  <p id="warningRent" class="warning"></p>
 </div>
+
+<!-- CHART -->
+<canvas id="salesChart" class="my-6 bg-white p-2 rounded shadow"></canvas>
 
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -102,19 +123,14 @@ const firebaseConfig = {
 const app=initializeApp(firebaseConfig);
 const db=getDatabase(app);
 
-const PIN="3481";
-let attempts=0;
+const PIN="3481";           // Login PIN
+const DELETE_PIN="1234";    // Delete PIN
 
+let attempts=0;
 loginBtn.onclick=()=>{
   if(attempts>=5){ alert("অনেকবার ভুল কোড দিয়েছেন"); return; }
-  if(pinInput.value===PIN){
-    loginOverlay.style.display="none";
-    mainApp.classList.remove("hidden");
-    loadData();
-  }else{
-    attempts++;
-    loginError.classList.remove("hidden");
-  }
+  if(pinInput.value===PIN){ loginOverlay.style.display="none"; mainApp.classList.remove("hidden"); loadData(); }
+  else { attempts++; loginError.classList.remove("hidden"); }
 };
 
 logoutBtn.onclick=()=>location.reload();
@@ -122,66 +138,63 @@ logoutBtn.onclick=()=>location.reload();
 currentDate.innerText=new Date().toLocaleDateString("bn-BD");
 currentDay.innerText=new Date().toLocaleDateString("bn-BD",{weekday:"long"});
 
-let adding=false;
 addBtn.onclick=addItem;
 
 amount.addEventListener("keypress",e=>{ if(e.key==="Enter") addItem(); });
 itemName.addEventListener("keypress",e=>{ if(e.key==="Enter") addItem(); });
 
 async function addItem(){
-  if(adding) return;
   const name=itemName.value;
   const amt=parseFloat(amount.value);
   const typeSelect=document.getElementById("type").value;
   if(!name||isNaN(amt)) return;
-  adding=true;
-  const today=new Date().toISOString().split("T")[0];
-  await push(ref(db,"ledgers/"+today),{
-    name, amount:amt, type:typeSelect, time:Date.now()
-  });
+  const dateToUse = customDateInput.value || new Date().toISOString().split("T")[0];
+  await push(ref(db,"ledgers/"+dateToUse),{ name, amount:amt, type:typeSelect, time:Date.now() });
   itemName.value=""; amount.value="";
-  adding=false;
 }
 
-window.deleteItem=id=>{
-  const pin=prompt("আইটেম মুছতে PIN দিন");
-  if(pin!==PIN){ alert("ভুল PIN"); return; }
+window.deleteItem = id => {
+  const pin = prompt("আইটেম মুছতে Delete PIN দিন");
+  if(pin!==DELETE_PIN){ alert("ভুল Delete PIN"); return; }
   if(!confirm("নিশ্চিতভাবে মুছে ফেলবেন?")) return;
-  const today=new Date().toISOString().split("T")[0];
-  remove(ref(db,"ledgers/"+today+"/"+id));
+  const dateToUse = customDateInput.value || new Date().toISOString().split("T")[0];
+  remove(ref(db,"ledgers/"+dateToUse+"/"+id));
 };
 
 window.editItem=(id,name,amount,type)=>{
   const newName=prompt("বিবরণ পরিবর্তন করুন",name);
   const newAmount=prompt("টাকা পরিবর্তন করুন",amount);
   if(!newName||!newAmount) return;
-  const today=new Date().toISOString().split("T")[0];
-  set(ref(db,"ledgers/"+today+"/"+id),{ name:newName, amount:parseFloat(newAmount), type, time:Date.now() });
+  const dateToUse = customDateInput.value || new Date().toISOString().split("T")[0];
+  set(ref(db,"ledgers/"+dateToUse+"/"+id),{ name:newName, amount:parseFloat(newAmount), type, time:Date.now() });
 };
 
+let chart;
 function loadData(){
-  const today=new Date();
-  const todayStr=today.toISOString().split("T")[0];
-  const y=new Date(today); y.setDate(y.getDate()-1);
-  const yStr=y.toISOString().split("T")[0];
-  let openingCash=0;
+  const dateToUse = customDateInput.value || new Date().toISOString().split("T")[0];
+  const today=new Date(dateToUse);
+  const todayStr=dateToUse;
 
-  // গতকালের ক্যাশ
+  // Previous day cash
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate()-1);
+  const yStr = yesterday.toISOString().split("T")[0];
   onValue(ref(db,"ledgers/"+yStr),snap=>{
     let ti=0, te=0;
     snap.forEach(c=>{ const d=c.val(); if(d.type==="income") ti+=d.amount; if(d.type==="expense") te+=d.amount; });
-    openingCash=ti-te;
-    openingBalance.innerText=openingCash;
+    openingBalance.innerText = ti-te;
   });
 
-  // আজকের ডাটা
+  // Today's data
   onValue(ref(db,"ledgers/"+todayStr),snap=>{
-    let ti=0, te=0;
+    let ti=0, te=0, dailySalary=0, monthlySalary=0, dailyRent=0, monthlyRent=0;
     let incomeHtml="", expenseHtml="";
     snap.forEach(c=>{
       const d=c.val(), id=c.key;
       if(d.type==="income") ti+=d.amount;
       if(d.type==="expense") te+=d.amount;
+      if(d.type==="staff_salary") dailySalary+=d.amount;
+      if(d.type==="shop_rent") dailyRent+=d.amount;
       const row=`
       <div class="flex justify-between p-2 border-b item-row">
         <span>${d.name}</span>
@@ -192,18 +205,61 @@ function loadData(){
           </span>
         </span>
       </div>`;
-      if(d.type.includes("income")) incomeHtml+=row;
-      else expenseHtml+=row;
+      if(d.type==="income") incomeHtml+=row; else expenseHtml+=row;
     });
-    incomeList.innerHTML=incomeHtml||"<p class='p-3 text-center text-gray-400'>কিছু নেই</p>";
-    expenseList.innerHTML=expenseHtml||"<p class='p-3 text-center text-gray-400'>কিছু নেই</p>";
+    incomeList.innerHTML = incomeHtml||"<p class='p-3 text-center text-gray-400'>কিছু নেই</p>";
+    expenseList.innerHTML = expenseHtml||"<p class='p-3 text-center text-gray-400'>কিছু নেই</p>";
     totalInc.innerText=ti;
     totalExp.innerText=te;
-    const profit=ti-te;
-    profitTotal.innerText=profit;
-    grandTotal.innerText=openingCash+profit;
+    profitTotal.innerText=ti-te;
+    grandTotal.innerText=(parseFloat(openingBalance.innerText)||0)+ti-te;
+    dailySalarySpan = document.getElementById("dailySalary"); dailySalarySpan.innerText=dailySalary;
+    dailyRentSpan = document.getElementById("dailyRent"); dailyRentSpan.innerText=dailyRent;
+    // Warning
+    warningSalary.innerText = dailySalary==0?"স্টাফ বেতন বকেয়া নেই": "⚠️ স্টাফ বেতন বকেয়া!";
+    warningRent.innerText = dailyRent==0?"দোকান ভাড়া বকেয়া নেই":"⚠️ দোকান ভাড়া বকেয়া!";
+  });
+
+  // Chart
+  const ctx = document.getElementById("salesChart").getContext("2d");
+  if(chart) chart.destroy();
+  chart = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:['Income','Expense','Staff Salary','Shop Rent'],
+      datasets:[{
+        label:'Daily Summary',
+        data:[parseFloat(totalInc.innerText),parseFloat(totalExp.innerText),parseFloat(dailySalarySpan.innerText),parseFloat(dailyRentSpan.innerText)],
+        backgroundColor:['#16a34a','#dc2626','#f59e0b','#3b82f6']
+      }]
+    },
+    options:{responsive:true,plugins:{legend:{display:false}}}
   });
 }
+
+// Reload data when custom date changes
+customDateInput.addEventListener("change", loadData);
+
+// CSV export
+exportBtn.onclick=()=>{
+  const rows=[['Name','Amount','Type','Date']];
+  const dateToUse = customDateInput.value || new Date().toISOString().split("T")[0];
+  onValue(ref(db,"ledgers/"+dateToUse),snap=>{
+    snap.forEach(c=>{
+      const d=c.val();
+      rows.push([d.name,d.amount,d.type,dateToUse]);
+    });
+    let csvContent = "data:text/csv;charset=utf-8," 
+      + rows.map(e=>e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link=document.createElement("a");
+    link.setAttribute("href",encodedUri);
+    link.setAttribute("download","ledger_"+dateToUse+".csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  },{once:true});
+};
 </script>
 
 </body>
