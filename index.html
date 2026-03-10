@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ভাতঘর হোটেল POS PRO</title>
+<title>ভাতঘর হোটেল ডেইলি লেজার</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -44,6 +44,7 @@ body { font-family:'Hind Siliguri',sans-serif; }
 <!-- ACTION BAR -->
 <div class="p-3 flex justify-between bg-slate-100 no-print">
   <button onclick="window.print()" class="bg-slate-700 text-white px-3 py-1 rounded">প্রিন্ট</button>
+  <a href="report.html" class="bg-emerald-600 text-white px-3 py-1 rounded">মাসিক রিপোর্ট</a>
   <button id="exportBtn" class="bg-emerald-600 text-white px-3 py-1 rounded">Export CSV</button>
   <button id="logoutBtn" class="bg-red-600 text-white px-3 py-1 rounded">লগআউট</button>
 </div>
@@ -57,7 +58,7 @@ body { font-family:'Hind Siliguri',sans-serif; }
 <!-- ADD ITEM -->
 <div class="p-3 flex flex-wrap gap-2 border-b bg-slate-50 no-print">
   <input id="itemName" placeholder="বিবরণ" class="border p-2 rounded flex-1">
-  <input id="amount" type="number" placeholder="টাকা" class="border p-2 rounded w-24">
+  <input id="amount" type="text" placeholder="টাকা" class="border p-2 rounded w-32">
   <select id="type" class="border p-2 rounded">
     <option value="income">নগদ বিক্রয়</option>
     <option value="expense">নগদ খরচ</option>
@@ -111,20 +112,19 @@ body { font-family:'Hind Siliguri',sans-serif; }
 import {initializeApp} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import {getDatabase,ref,push,set,onValue,remove} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey:"AIzaSyCoZQQfywLU21JgrxXK82PYRQE2eKUwND4",
-  authDomain:"vatghor-ledger-81366.firebaseapp.com",
-  databaseURL:"https://vatghor-ledger-81366-default-rtdb.firebaseio.com",
-  projectId:"vatghor-ledger-81366",
-  storageBucket:"vatghor-ledger-81366.appspot.com",
-  messagingSenderId:"639005808868",
-  appId:"1:639005808868:web:aa77be07aaa0264fd8f4f1"
-};
+const firebaseConfig={apiKey:"AIzaSyCoZQQfywLU21JgrxXK82PYRQE2eKUwND4",authDomain:"vatghor-ledger-81366.firebaseapp.com",databaseURL:"https://vatghor-ledger-81366-default-rtdb.firebaseio.com",projectId:"vatghor-ledger-81366",storageBucket:"vatghor-ledger-81366.appspot.com",messagingSenderId:"639005808868",appId:"1:639005808868:web:aa77be07aaa0264fd8f4f1"};
 const app=initializeApp(firebaseConfig);
 const db=getDatabase(app);
 
-const PIN="3481";           // Login PIN
-const DELETE_PIN="1234";    // Delete PIN
+const PIN="3481"; 
+const DELETE_PIN="8019"; 
+
+// ইংরেজি বা বাংলা সংখ্যা → বাংলা সংখ্যা
+function toBanglaNumber(input){
+  let num = input.replace(/[^0-9]/g,''); 
+  if(num==='') return '০';
+  return num.replace(/\d/g,d=>'০১২৩৪৫৬৭৮৯'[d]);
+}
 
 let attempts=0;
 loginBtn.onclick=()=>{
@@ -134,30 +134,28 @@ loginBtn.onclick=()=>{
 };
 
 logoutBtn.onclick=()=>location.reload();
-
 currentDate.innerText=new Date().toLocaleDateString("bn-BD");
 currentDay.innerText=new Date().toLocaleDateString("bn-BD",{weekday:"long"});
 
 addBtn.onclick=addItem;
 
-amount.addEventListener("keypress",e=>{ if(e.key==="Enter") addItem(); });
-itemName.addEventListener("keypress",e=>{ if(e.key==="Enter") addItem(); });
-
 async function addItem(){
   const name=itemName.value;
-  const amt=parseFloat(amount.value);
-  const typeSelect=document.getElementById("type").value;
-  if(!name||isNaN(amt)) return;
-  const dateToUse = customDateInput.value || new Date().toISOString().split("T")[0];
-  await push(ref(db,"ledgers/"+dateToUse),{ name, amount:amt, type:typeSelect, time:Date.now() });
+  let amtStr=amount.value;
+  if(!name||!amtStr) return;
+  let amt=parseFloat(amtStr.replace(/[^0-9]/g,'')); 
+  if(isNaN(amt)) amt=0;
+  const typeSelect=type.value;
+  const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
+  await push(ref(db,"ledgers/"+dateToUse),{name,amount:amt,type:typeSelect,time:Date.now()});
   itemName.value=""; amount.value="";
 }
 
-window.deleteItem = id => {
-  const pin = prompt("আইটেম মুছতে Delete PIN দিন");
+window.deleteItem=id=>{
+  const pin=prompt("আইটেম মুছতে Delete PIN দিন");
   if(pin!==DELETE_PIN){ alert("ভুল Delete PIN"); return; }
   if(!confirm("নিশ্চিতভাবে মুছে ফেলবেন?")) return;
-  const dateToUse = customDateInput.value || new Date().toISOString().split("T")[0];
+  const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
   remove(ref(db,"ledgers/"+dateToUse+"/"+id));
 };
 
@@ -165,40 +163,38 @@ window.editItem=(id,name,amount,type)=>{
   const newName=prompt("বিবরণ পরিবর্তন করুন",name);
   const newAmount=prompt("টাকা পরিবর্তন করুন",amount);
   if(!newName||!newAmount) return;
-  const dateToUse = customDateInput.value || new Date().toISOString().split("T")[0];
-  set(ref(db,"ledgers/"+dateToUse+"/"+id),{ name:newName, amount:parseFloat(newAmount), type, time:Date.now() });
+  const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
+  set(ref(db,"ledgers/"+dateToUse+"/"+id),{name:newName,amount:parseFloat(newAmount),type,time:Date.now()});
 };
 
 let chart;
 function loadData(){
-  const dateToUse = customDateInput.value || new Date().toISOString().split("T")[0];
-  const today=new Date(dateToUse);
+  const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
   const todayStr=dateToUse;
-
-  // Previous day cash
-  const yesterday = new Date(today);
+  const yesterday=new Date(dateToUse);
   yesterday.setDate(yesterday.getDate()-1);
-  const yStr = yesterday.toISOString().split("T")[0];
+  const yStr=yesterday.toISOString().split("T")[0];
+
   onValue(ref(db,"ledgers/"+yStr),snap=>{
-    let ti=0, te=0;
+    let ti=0,te=0;
     snap.forEach(c=>{ const d=c.val(); if(d.type==="income") ti+=d.amount; if(d.type==="expense") te+=d.amount; });
-    openingBalance.innerText = ti-te;
+    openingBalance.innerText=toBanglaNumber(ti-te);
   });
 
-  // Today's data
   onValue(ref(db,"ledgers/"+todayStr),snap=>{
-    let ti=0, te=0, dailySalary=0, monthlySalary=0, dailyRent=0, monthlyRent=0;
-    let incomeHtml="", expenseHtml="";
+    let ti=0,te=0,dailySalary=0,dailyRent=0;
+    let incomeHtml="",expenseHtml="";
     snap.forEach(c=>{
-      const d=c.val(), id=c.key;
+      const d=c.val(),id=c.key;
       if(d.type==="income") ti+=d.amount;
       if(d.type==="expense") te+=d.amount;
       if(d.type==="staff_salary") dailySalary+=d.amount;
       if(d.type==="shop_rent") dailyRent+=d.amount;
+
       const row=`
       <div class="flex justify-between p-2 border-b item-row">
         <span>${d.name}</span>
-        <span>৳ ${d.amount} 
+        <span>৳ ${toBanglaNumber(d.amount)} 
           <span class="action-btns opacity-0 ml-2">
             <button onclick="editItem('${id}','${d.name}','${d.amount}','${d.type}')">✏️</button>
             <button onclick="deleteItem('${id}')">❌</button>
@@ -207,59 +203,43 @@ function loadData(){
       </div>`;
       if(d.type==="income") incomeHtml+=row; else expenseHtml+=row;
     });
-    incomeList.innerHTML = incomeHtml||"<p class='p-3 text-center text-gray-400'>কিছু নেই</p>";
-    expenseList.innerHTML = expenseHtml||"<p class='p-3 text-center text-gray-400'>কিছু নেই</p>";
-    totalInc.innerText=ti;
-    totalExp.innerText=te;
-    profitTotal.innerText=ti-te;
-    grandTotal.innerText=(parseFloat(openingBalance.innerText)||0)+ti-te;
-    dailySalarySpan = document.getElementById("dailySalary"); dailySalarySpan.innerText=dailySalary;
-    dailyRentSpan = document.getElementById("dailyRent"); dailyRentSpan.innerText=dailyRent;
-    // Warning
-    warningSalary.innerText = dailySalary==0?"স্টাফ বেতন বকেয়া নেই": "⚠️ স্টাফ বেতন বকেয়া!";
-    warningRent.innerText = dailyRent==0?"দোকান ভাড়া বকেয়া নেই":"⚠️ দোকান ভাড়া বকেয়া!";
-  });
+    incomeList.innerHTML=incomeHtml||"<p class='p-3 text-center text-gray-400'>কিছু নেই</p>";
+    expenseList.innerHTML=expenseHtml||"<p class='p-3 text-center text-gray-400'>কিছু নেই</p>";
 
-  // Chart
-  const ctx = document.getElementById("salesChart").getContext("2d");
-  if(chart) chart.destroy();
-  chart = new Chart(ctx,{
-    type:'bar',
-    data:{
-      labels:['Income','Expense','Staff Salary','Shop Rent'],
-      datasets:[{
-        label:'Daily Summary',
-        data:[parseFloat(totalInc.innerText),parseFloat(totalExp.innerText),parseFloat(dailySalarySpan.innerText),parseFloat(dailyRentSpan.innerText)],
-        backgroundColor:['#16a34a','#dc2626','#f59e0b','#3b82f6']
-      }]
-    },
-    options:{responsive:true,plugins:{legend:{display:false}}}
+    totalInc.innerText=toBanglaNumber(ti);
+    totalExp.innerText=toBanglaNumber(te);
+    profitTotal.innerText=toBanglaNumber(ti-te);
+    grandTotal.innerText=toBanglaNumber((parseFloat(openingBalance.innerText)||0)+ti-te);
+    dailySalarySpan=document.getElementById("dailySalary"); dailySalarySpan.innerText=toBanglaNumber(dailySalary);
+    dailyRentSpan=document.getElementById("dailyRent"); dailyRentSpan.innerText=toBanglaNumber(dailyRent);
+
+    warningSalary.innerText = dailySalary==0?"স্টাফ বেতন বকেয়া নেই":"⚠️ স্টাফ বেতন বকেয়া!";
+    warningRent.innerText = dailyRent==0?"দোকান ভাড়া বকেয়া নেই":"⚠️ দোকান ভাড়া বকেয়া!";
+
+    const ctx=document.getElementById("salesChart").getContext("2d");
+    if(chart) chart.destroy();
+    chart=new Chart(ctx,{
+      type:'bar',
+      data:{labels:['Income','Expense','Staff Salary','Shop Rent'],datasets:[{label:'Daily Summary',data:[ti,te,dailySalary,dailyRent],backgroundColor:['#16a34a','#dc2626','#f59e0b','#3b82f6']}]},
+      options:{responsive:true,plugins:{legend:{display:false}}}
+    });
   });
 }
 
-// Reload data when custom date changes
-customDateInput.addEventListener("change", loadData);
+customDateInput.addEventListener("change",loadData);
 
-// CSV export
 exportBtn.onclick=()=>{
   const rows=[['Name','Amount','Type','Date']];
-  const dateToUse = customDateInput.value || new Date().toISOString().split("T")[0];
+  const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
   onValue(ref(db,"ledgers/"+dateToUse),snap=>{
-    snap.forEach(c=>{
-      const d=c.val();
-      rows.push([d.name,d.amount,d.type,dateToUse]);
-    });
-    let csvContent = "data:text/csv;charset=utf-8," 
-      + rows.map(e=>e.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link=document.createElement("a");
-    link.setAttribute("href",encodedUri);
-    link.setAttribute("download","ledger_"+dateToUse+".csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    snap.forEach(c=>{ const d=c.val(); rows.push([d.name,d.amount,d.type,dateToUse]); });
+    let csvContent="data:text/csv;charset=utf-8,"+rows.map(e=>e.join(",")).join("\n");
+    const link=document.createElement("a"); link.href=encodeURI(csvContent);
+    link.download="ledger_"+dateToUse+".csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link);
   },{once:true});
 };
+
+loadData();
 </script>
 
 </body>
