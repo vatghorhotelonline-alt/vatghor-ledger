@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>রিপোর্ট - ভাতঘর হোটেল</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Hind Siliguri', sans-serif; }
+    @media print { .no-print { display: none !important; } }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen p-2 sm:p-6">
+
+  <div class="max-w-4xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden">
+    <div class="p-6 text-center border-b bg-white">
+      <h1 class="text-2xl font-black text-red-700">ভাতঘর হোটেল রেস্টুরেন্ট</h1>
+      <p class="text-sm font-bold text-slate-600">দৈনিক বিক্রয় ও খরচ রিপোর্ট</p>
+      
+      <div class="mt-4 flex items-center justify-center gap-2 no-print">
+        <input id="reportDate" type="date" class="border p-2 rounded text-sm outline-none focus:ring-2 focus:ring-blue-500">
+        <button onclick="window.print()" class="bg-slate-700 text-white px-4 py-2 rounded text-sm font-bold">🖨️ প্রিন্ট</button>
+        <a href="index.html" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold">🏠 হোম</a>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 p-4 bg-slate-50 border-b">
+      <div class="p-3 bg-green-50 rounded border border-green-200 text-center">
+        <p class="text-[10px] text-green-700 font-bold uppercase">নগদ বিক্রয়</p>
+        <p class="text-lg font-black text-green-800">৳ <span id="repTotalInc">০</span></p>
+      </div>
+      <div class="p-3 bg-red-50 rounded border border-red-200 text-center">
+        <p class="text-[10px] text-red-700 font-bold uppercase">নগদ খরচ</p>
+        <p class="text-lg font-black text-red-800">৳ <span id="repTotalExp">০</span></p>
+      </div>
+      <div class="p-3 bg-yellow-50 rounded border border-yellow-200 text-center">
+        <p class="text-[10px] text-yellow-700 font-bold uppercase">বাকী পাওনা</p>
+        <p class="text-lg font-black text-yellow-800">৳ <span id="repTotalDueInc">০</span></p>
+      </div>
+      <div class="p-3 bg-slate-800 rounded text-center">
+        <p class="text-[10px] text-slate-300 font-bold uppercase">নেট ক্যাশ</p>
+        <p class="text-lg font-black text-white">৳ <span id="repNetTotal">০</span></p>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead class="bg-slate-100 border-b">
+          <tr>
+            <th class="p-3 font-bold text-slate-700">বিবরণ</th>
+            <th class="p-3 font-bold text-slate-700 text-right">ধরণ</th>
+            <th class="p-3 font-bold text-slate-700 text-right">টাকা</th>
+          </tr>
+        </thead>
+        <tbody id="reportTableBody" class="divide-y">
+          </tbody>
+      </table>
+    </div>
+    
+    <div id="noDataMsg" class="p-10 text-center text-slate-400 italic hidden">
+      এই তারিখে কোনো রেকর্ড পাওয়া যায়নি।
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+
+    // আপনার Firebase Config (index.html এর মতই)
+    const firebaseConfig = {
+      apiKey: "AIzaSyCoZQQfywLU21JgrxXK82PYRQE2eKUwND4",
+      authDomain: "vatghor-ledger-81366.firebaseapp.com",
+      databaseURL: "https://vatghor-ledger-81366-default-rtdb.firebaseio.com",
+      projectId: "vatghor-ledger-81366",
+      storageBucket: "vatghor-ledger-81366.firebasestorage.app",
+      messagingSenderId: "639005808868",
+      appId: "1:639005808868:web:aa77be07aaa0264fd8f4f1"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const reportDateInput = document.getElementById('reportDate');
+    const tableBody = document.getElementById('reportTableBody');
+    const noDataMsg = document.getElementById('noDataMsg');
+
+    // আজকের তারিখ ডিফল্ট সেট করা
+    const today = new Date().toISOString().split('T')[0];
+    reportDateInput.value = today;
+
+    // তারিখ পরিবর্তন হলে ডাটা লোড হবে
+    reportDateInput.onchange = () => loadReport(reportDateInput.value);
+
+    // প্রথমবার লোড
+    loadReport(today);
+
+    function loadReport(selectedDate) {
+      const dbRef = ref(db, 'ledgers/' + selectedDate);
+      
+      onValue(dbRef, (snap) => {
+        let rows = '', ti = 0, te = 0, tdi = 0, tde = 0;
+        const data = snap.val();
+
+        if (data) {
+          Object.keys(data).forEach(key => {
+            const d = data[key];
+            let typeText = '', typeColor = '';
+
+            if(d.type === 'income') { typeText = 'জমা'; typeColor = 'text-green-600'; ti += d.amount; }
+            else if(d.type === 'expense') { typeText = 'ব্যয়'; typeColor = 'text-red-600'; te += d.amount; }
+            else if(d.type === 'due_income') { typeText = 'বাকী (পাওনা)'; typeColor = 'text-yellow-600'; tdi += d.amount; }
+            else if(d.type === 'due_expense') { typeText = 'বাকী (দেনা)'; typeColor = 'text-orange-600'; tde += d.amount; }
+
+            rows += `
+              <tr class="hover:bg-slate-50">
+                <td class="p-3 font-medium">${d.name}</td>
+                <td class="p-3 text-right font-bold ${typeColor}">${typeText}</td>
+                <td class="p-3 text-right font-bold text-slate-800">৳ ${d.amount.toLocaleString('bn-BD')}</td>
+              </tr>`;
+          });
+
+          tableBody.innerHTML = rows;
+          noDataMsg.classList.add('hidden');
+        } else {
+          tableBody.innerHTML = '';
+          noDataMsg.classList.remove('hidden');
+        }
+
+        // Summary Update
+        document.getElementById('repTotalInc').innerText = ti.toLocaleString('bn-BD');
+        document.getElementById('repTotalExp').innerText = te.toLocaleString('bn-BD');
+        document.getElementById('repTotalDueInc').innerText = tdi.toLocaleString('bn-BD');
+        document.getElementById('repNetTotal').innerText = (ti - te).toLocaleString('bn-BD');
+      });
+    }
+  </script>
+</body>
+</html>
