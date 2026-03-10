@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ভাতঘর হোটেল মাসিক রিপোর্ট</title>
+<title>ভাত ঘর হোটেল মাসিক রিপোর্ট</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -22,6 +22,7 @@ th, td { border:1px solid #ccc; padding:4px; text-align:center; }
   <input type="month" id="monthInput" class="border p-2 rounded">
   <button id="loadBtn" class="bg-blue-600 text-white px-3 py-1 rounded">লোড করুন</button>
   <button id="exportBtn" class="bg-emerald-600 text-white px-3 py-1 rounded">Export CSV</button>
+  <a href="index.html" class="bg-gray-600 text-white px-3 py-1 rounded">← হোম</a>
 </div>
 
 <table class="bg-white">
@@ -74,6 +75,8 @@ const monthRent=document.getElementById("monthRent");
 const monthProfit=document.getElementById("monthProfit");
 const warningSalary=document.getElementById("warningSalary");
 const warningRent=document.getElementById("warningRent");
+const loadBtn=document.getElementById("loadBtn");
+const exportBtn=document.getElementById("exportBtn");
 
 function toBanglaNumber(input){
   const num=parseInt(input)||0;
@@ -86,12 +89,12 @@ loadBtn.onclick=loadMonthData;
 function loadMonthData(){
   const val=monthInput.value;
   if(!val){ alert("মাস নির্বাচন করুন"); return; }
-  const [year,month]=val.split("-");
   reportBody.innerHTML="<tr><td colspan='4'>লোড হচ্ছে...</td></tr>";
 
   onValue(ref(db,"ledgers"),snap=>{
     const rows=[];
     let total=0,ti=0,te=0,ts=0,tr=0;
+
     snap.forEach(daySnap=>{
       const date=daySnap.key;
       if(date.startsWith(val)){
@@ -106,11 +109,12 @@ function loadMonthData(){
           total+=d.amount;
           if(d.type==="income") ti+=d.amount;
           if(d.type==="expense") te+=d.amount;
-          if(d.type==="staff_salary") ts+=d.amount;
-          if(d.type==="shop_rent") tr+=d.amount;
+          if(d.type==="staff_salary"){ te+=d.amount; ts+=d.amount; }
+          if(d.type==="shop_rent"){ te+=d.amount; tr+=d.amount; }
         });
       }
     });
+
     reportBody.innerHTML=rows.join("")||"<tr><td colspan='4'>কোনো এন্ট্রি নেই</td></tr>";
     totalAmount.innerText=toBanglaNumber(total);
     monthIncome.innerText=toBanglaNumber(ti);
@@ -119,10 +123,9 @@ function loadMonthData(){
     monthRent.innerText=toBanglaNumber(tr);
     monthProfit.innerText=toBanglaNumber(ti-te);
 
-    // Warning for dues
     warningSalary.innerText = ts===0?"স্টাফ বেতন বকেয়া নেই":"⚠️ স্টাফ বেতন বকেয়া আছে!";
     warningRent.innerText = tr===0?"দোকান ভাড়া বকেয়া নেই":"⚠️ দোকান ভাড়া বকেয়া আছে!";
-  });
+  },{once:true});
 }
 
 // CSV Export
