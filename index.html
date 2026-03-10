@@ -33,8 +33,7 @@ body { font-family:'Hind Siliguri',sans-serif; }
 
 <!-- HEADER -->
 <div class="p-4 border-b text-center">
-  <h1 class="text-2xl font-black text-red-700">ভাতঘর হোটেল রেস্টুরেন্ট এন্ড মিষ্টান্ন</h1>
-  <p class="text-sm">মাইজদীকোর্ট, নোয়াখালী</p>
+  <h1 class="text-2xl font-black text-red-700">ভাত ঘর হোটেল রেস্টুরেন্ট এন্ড মিষ্টান্ন</h1>
   <div class="flex justify-between mt-3 text-sm font-bold">
     <div>তারিখ: <span id="currentDate"></span></div>
     <div>বার: <span id="currentDay"></span></div>
@@ -117,15 +116,29 @@ const app=initializeApp(firebaseConfig);
 const db=getDatabase(app);
 
 const PIN="3481"; 
-const DELETE_PIN="8019"; 
+const DELETE_PIN="8019"; // ডিলেট পিন
 
-// ইংরেজি বা বাংলা সংখ্যা → বাংলা সংখ্যা
-function toBanglaNumber(input){
-  let num = input.replace(/[^0-9]/g,''); 
-  if(num==='') return '০';
-  return num.replace(/\d/g,d=>'০১২৩৪৫৬৭৮৯'[d]);
+// বাংলা/ইংরেজি সংখ্যা → number
+function parseNumber(input){
+  if(!input) return 0;
+  const banglaDigits='০১২৩৪৫৬৭৮৯';
+  let converted='';
+  for(let ch of input){
+    if(banglaDigits.includes(ch)){ converted+=banglaDigits.indexOf(ch); }
+    else if(!isNaN(parseInt(ch))){ converted+=ch; }
+  }
+  const num=parseFloat(converted);
+  return isNaN(num)?0:num;
 }
 
+// number → বাংলা সংখ্যা
+function toBanglaNumber(input){
+  const num=parseInt(input)||0;
+  const banglaDigits='০১২৩৪৫৬৭৮৯';
+  return String(num).replace(/\d/g,d=>banglaDigits[d]);
+}
+
+// LOGIN
 let attempts=0;
 loginBtn.onclick=()=>{
   if(attempts>=5){ alert("অনেকবার ভুল কোড দিয়েছেন"); return; }
@@ -137,20 +150,19 @@ logoutBtn.onclick=()=>location.reload();
 currentDate.innerText=new Date().toLocaleDateString("bn-BD");
 currentDay.innerText=new Date().toLocaleDateString("bn-BD",{weekday:"long"});
 
+// ADD ITEM
 addBtn.onclick=addItem;
-
 async function addItem(){
   const name=itemName.value;
-  let amtStr=amount.value;
-  if(!name||!amtStr) return;
-  let amt=parseFloat(amtStr.replace(/[^0-9]/g,'')); 
-  if(isNaN(amt)) amt=0;
+  let amt=parseNumber(amount.value);
   const typeSelect=type.value;
   const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
+  if(!name || !amt) return;
   await push(ref(db,"ledgers/"+dateToUse),{name,amount:amt,type:typeSelect,time:Date.now()});
-  itemName.value=""; amount.value="";
+  itemName.value=''; amount.value=''; itemName.focus();
 }
 
+// DELETE / EDIT
 window.deleteItem=id=>{
   const pin=prompt("আইটেম মুছতে Delete PIN দিন");
   if(pin!==DELETE_PIN){ alert("ভুল Delete PIN"); return; }
@@ -164,26 +176,28 @@ window.editItem=(id,name,amount,type)=>{
   const newAmount=prompt("টাকা পরিবর্তন করুন",amount);
   if(!newName||!newAmount) return;
   const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
-  set(ref(db,"ledgers/"+dateToUse+"/"+id),{name:newName,amount:parseFloat(newAmount),type,time:Date.now()});
+  set(ref(db,"ledgers/"+dateToUse+"/"+id),{name:newName,amount:parseNumber(newAmount),type,time:Date.now()});
 };
 
+// LOAD DATA
 let chart;
 function loadData(){
   const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
   const todayStr=dateToUse;
-  const yesterday=new Date(dateToUse);
-  yesterday.setDate(yesterday.getDate()-1);
+  const yesterday=new Date(dateToUse); yesterday.setDate(yesterday.getDate()-1);
   const yStr=yesterday.toISOString().split("T")[0];
 
+  // Opening balance
   onValue(ref(db,"ledgers/"+yStr),snap=>{
     let ti=0,te=0;
     snap.forEach(c=>{ const d=c.val(); if(d.type==="income") ti+=d.amount; if(d.type==="expense") te+=d.amount; });
     openingBalance.innerText=toBanglaNumber(ti-te);
   });
 
+  // Today's entries
   onValue(ref(db,"ledgers/"+todayStr),snap=>{
     let ti=0,te=0,dailySalary=0,dailyRent=0;
-    let incomeHtml="",expenseHtml="";
+    let incomeHtml='',expenseHtml='';
     snap.forEach(c=>{
       const d=c.val(),id=c.key;
       if(d.type==="income") ti+=d.amount;
@@ -191,10 +205,9 @@ function loadData(){
       if(d.type==="staff_salary") dailySalary+=d.amount;
       if(d.type==="shop_rent") dailyRent+=d.amount;
 
-      const row=`
-      <div class="flex justify-between p-2 border-b item-row">
+      const row=`<div class="flex justify-between p-2 border-b item-row">
         <span>${d.name}</span>
-        <span>৳ ${toBanglaNumber(d.amount)} 
+        <span>৳ ${toBanglaNumber(d.amount)}
           <span class="action-btns opacity-0 ml-2">
             <button onclick="editItem('${id}','${d.name}','${d.amount}','${d.type}')">✏️</button>
             <button onclick="deleteItem('${id}')">❌</button>
@@ -203,13 +216,14 @@ function loadData(){
       </div>`;
       if(d.type==="income") incomeHtml+=row; else expenseHtml+=row;
     });
+
     incomeList.innerHTML=incomeHtml||"<p class='p-3 text-center text-gray-400'>কিছু নেই</p>";
     expenseList.innerHTML=expenseHtml||"<p class='p-3 text-center text-gray-400'>কিছু নেই</p>";
 
     totalInc.innerText=toBanglaNumber(ti);
     totalExp.innerText=toBanglaNumber(te);
     profitTotal.innerText=toBanglaNumber(ti-te);
-    grandTotal.innerText=toBanglaNumber((parseFloat(openingBalance.innerText)||0)+ti-te);
+    grandTotal.innerText=toBanglaNumber((parseInt(openingBalance.innerText)||0)+ti-te);
     dailySalarySpan=document.getElementById("dailySalary"); dailySalarySpan.innerText=toBanglaNumber(dailySalary);
     dailyRentSpan=document.getElementById("dailyRent"); dailyRentSpan.innerText=toBanglaNumber(dailyRent);
 
@@ -228,6 +242,7 @@ function loadData(){
 
 customDateInput.addEventListener("change",loadData);
 
+// CSV EXPORT
 exportBtn.onclick=()=>{
   const rows=[['Name','Amount','Type','Date']];
   const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
