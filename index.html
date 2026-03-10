@@ -29,7 +29,7 @@
   <div id="mainApp" class="max-w-4xl mx-auto bg-white shadow-2xl rounded-sm border-t-8 border-red-600 overflow-hidden hidden opacity-0 transition-opacity duration-500">
     <div class="p-4 sm:p-6 text-center border-b border-gray-300">
       <p class="text-xs font-semibold">বিসমিল্লাহির রাহমানির রাহিম</p>
-      <h1 class="text-2xl sm:text-3xl font-black text-red-700 mt-1">ভাতঘর হোটেল রেস্টুরেন্ট</h1>
+      <h1 class="text-2xl sm:text-3xl font-black text-red-700 mt-1">ভাতঘর হোটেল রেস্টুরেন্ট এন্ড মিষ্টান্ন</h1>
       <p class="text-xs sm:text-sm font-medium">মাইজদীকোর্ট, নোয়াখালী।</p>
       <div class="flex justify-between mt-4 text-xs sm:text-sm font-bold border-t pt-2">
         <div>তারিখ: <span id="currentDate"></span></div>
@@ -40,6 +40,7 @@
     <div class="p-3 sm:p-4 bg-slate-50 border-b flex items-center justify-between gap-2 no-print">
       <div class="text-xs font-semibold text-slate-600">দৈনিক হিসাব</div>
       <div class="flex gap-2">
+        <a href="report.html" class="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700 transition">📊 রিপোর্ট</a>
         <button onclick="window.print()" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800 transition">🖨️ প্রিন্ট</button>
         <button id="logoutBtn" class="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition">🚪 লগআউট</button>
       </div>
@@ -78,15 +79,27 @@
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-4 bg-slate-800 text-white font-bold p-4 text-center text-[10px] gap-y-4">
-      <div class="border-r border-slate-600"><p class="opacity-75">নগদ বিক্রয়</p><p id="totalInc">৳ ০</p></div>
-      <div class="md:border-r border-slate-600"><p class="opacity-75">নগদ খরচ</p><p id="totalExp">৳ ০</p></div>
-      <div class="border-r border-slate-600"><p class="opacity-75 text-yellow-400">বাকী পাওনা</p><p id="totalDueInc" class="text-yellow-400">৳ ০</p></div>
-      <div><p class="opacity-75 text-orange-400">বাকী দেনা</p><p id="totalDueExp" class="text-orange-400">৳ ০</p></div>
+      <div class="border-r border-slate-600"><p class="opacity-75">নগদ বিক্রয়</p><p id="totalInc" class="text-base">৳ ০</p></div>
+      <div class="md:border-r border-slate-600"><p class="opacity-75">নগদ খরচ</p><p id="totalExp" class="text-base">৳ ০</p></div>
+      <div class="border-r border-slate-600"><p class="opacity-75 text-yellow-400">বাকী পাওনা</p><p id="totalDueInc" class="text-yellow-400 text-base">৳ ০</p></div>
+      <div><p class="opacity-75 text-orange-400">বাকী দেনা</p><p id="totalDueExp" class="text-orange-400 text-base">৳ ০</p></div>
     </div>
     
-    <div class="bg-slate-900 text-white p-4 border-t border-slate-700 text-center">
-       <p class="text-xs opacity-75">আজকের ক্যাশ ড্রয়ারে থাকার কথা</p>
-       <p class="text-2xl font-black text-green-400">৳ <span id="netTotal">০</span></p>
+    <div class="bg-slate-900 text-white p-4 border-t border-slate-700">
+       <div class="grid grid-cols-2 gap-4 text-center">
+          <div class="border-r border-slate-700">
+            <p class="text-[10px] opacity-75 uppercase">সাবেক ক্যাশ</p>
+            <p class="text-xl font-black text-blue-400">৳ <span id="openingBalance">০</span></p>
+          </div>
+          <div>
+            <p class="text-[10px] opacity-75 uppercase">আজকের নেট ক্যাশ</p>
+            <p class="text-xl font-black text-green-400">৳ <span id="netTotal">০</span></p>
+          </div>
+       </div>
+       <div class="mt-4 pt-3 border-t border-slate-700 text-center">
+          <p class="text-xs opacity-75 uppercase tracking-widest">বর্তমানে মোট ক্যাশ</p>
+          <p class="text-3xl font-black text-yellow-400">৳ <span id="grandCashTotal">০</span></p>
+       </div>
     </div>
   </div>
 
@@ -107,7 +120,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    const PIN_CODE = '1234';
+    const PIN_CODE = '3481';
     const pinInput = document.getElementById('pinInput');
     const loginBtn = document.getElementById('loginBtn');
 
@@ -131,55 +144,81 @@
       const name = document.getElementById('itemName').value;
       const amt = parseFloat(document.getElementById('amount').value);
       const type = document.getElementById('type').value;
-      const today = new Date().toISOString().split('T')[0];
+      const todayStr = new Date().toISOString().split('T')[0];
 
       if (name && !isNaN(amt)) {
-        const dbRef = ref(db, 'ledgers/' + today);
-        const newRef = push(dbRef);
-        await set(newRef, { name, amount: amt, type, timestamp: Date.now() });
+        const dbRef = ref(db, 'ledgers/' + todayStr);
+        await push(dbRef, { name, amount: amt, type, timestamp: Date.now() });
         document.getElementById('itemName').value = '';
         document.getElementById('amount').value = '';
+        document.getElementById('itemName').focus();
       }
     };
 
     window.deleteItem = (id) => {
       if (confirm('মুছে ফেলতে চান?')) {
-        const today = new Date().toISOString().split('T')[0];
-        remove(ref(db, `ledgers/${today}/${id}`));
+        const todayStr = new Date().toISOString().split('T')[0];
+        remove(ref(db, `ledgers/${todayStr}/${id}`));
       }
     };
 
     function loadData() {
-      const today = new Date().toISOString().split('T')[0];
-      onValue(ref(db, 'ledgers/' + today), (snap) => {
-        let iHtml = '', eHtml = '', ti = 0, te = 0, tdi = 0, tde = 0;
-        snap.forEach(child => {
-          const d = child.val();
-          const id = child.key;
-          
-          if(d.type === 'income') ti += d.amount;
-          else if(d.type === 'expense') te += d.amount;
-          else if(d.type === 'due_income') tdi += d.amount;
-          else if(d.type === 'due_expense') tde += d.amount;
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      
+      // গতকালের সাবেক ক্যাশ বের করা
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-          const row = `
-            <div class="item-row flex justify-between p-3 group">
-              <span>${d.name} ${d.type.includes('due') ? '<small>(বাকী)</small>' : ''}</span>
-              <div class="flex items-center gap-2">
-                <span class="font-bold">৳ ${d.amount}</span>
-                <button onclick="deleteItem('${id}')" class="text-red-500 no-print">❌</button>
-              </div>
-            </div>`;
-          (d.type.includes('income') ? iHtml += row : eHtml += row);
+      onValue(ref(db, 'ledgers/' + yesterdayStr), (ySnap) => {
+        let yTi = 0, yTe = 0;
+        ySnap.forEach(c => {
+          const d = c.val();
+          if(d.type === 'income') yTi += d.amount;
+          if(d.type === 'expense') yTe += d.amount;
         });
+        const openingBal = yTi - yTe;
+        document.getElementById('openingBalance').innerText = openingBal.toLocaleString('bn-BD');
 
-        document.getElementById('incomeList').innerHTML = iHtml || '<p class="p-4 text-center">নেই</p>';
-        document.getElementById('expenseList').innerHTML = eHtml || '<p class="p-4 text-center">নেই</p>';
-        document.getElementById('totalInc').innerText = '৳ ' + ti;
-        document.getElementById('totalExp').innerText = '৳ ' + te;
-        document.getElementById('totalDueInc').innerText = '৳ ' + tdi;
-        document.getElementById('totalDueExp').innerText = '৳ ' + tde;
-        document.getElementById('netTotal').innerText = (ti - te);
+        // আজকের ডাটা লোড করা
+        onValue(ref(db, 'ledgers/' + todayStr), (snap) => {
+          let iHtml = '', eHtml = '', ti = 0, te = 0, tdi = 0, tde = 0;
+          snap.forEach(child => {
+            const d = child.val();
+            const id = child.key;
+            
+            if(d.type === 'income') ti += d.amount;
+            else if(d.type === 'expense') te += d.amount;
+            else if(d.type === 'due_income') tdi += d.amount;
+            else if(d.type === 'due_expense') tde += d.amount;
+
+            const row = `
+              <div class="item-row flex justify-between p-3 group border-b border-slate-50 last:border-0">
+                <div class="flex flex-col">
+                  <span class="font-medium">${d.name}</span>
+                  <span class="text-[9px] uppercase opacity-60">${d.type.includes('due') ? 'বাকী' : 'নগদ'}</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="font-bold">৳ ${d.amount.toLocaleString('bn-BD')}</span>
+                  <button onclick="deleteItem('${id}')" class="delete-btn opacity-0 text-red-500 transition">❌</button>
+                </div>
+              </div>`;
+            (d.type.includes('income') ? iHtml += row : eHtml += row);
+          });
+
+          document.getElementById('incomeList').innerHTML = iHtml || '<p class="p-4 text-center text-slate-400">জমা নেই</p>';
+          document.getElementById('expenseList').innerHTML = eHtml || '<p class="p-4 text-center text-slate-400">ব্যয় নেই</p>';
+          
+          document.getElementById('totalInc').innerText = '৳ ' + ti.toLocaleString('bn-BD');
+          document.getElementById('totalExp').innerText = '৳ ' + te.toLocaleString('bn-BD');
+          document.getElementById('totalDueInc').innerText = '৳ ' + tdi.toLocaleString('bn-BD');
+          document.getElementById('totalDueExp').innerText = '৳ ' + tde.toLocaleString('bn-BD');
+          
+          const currentNet = ti - te;
+          document.getElementById('netTotal').innerText = currentNet.toLocaleString('bn-BD');
+          document.getElementById('grandCashTotal').innerText = (openingBal + currentNet).toLocaleString('bn-BD');
+        });
       });
     }
   </script>
