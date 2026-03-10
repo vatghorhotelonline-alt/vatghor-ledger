@@ -4,19 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ভাতঘর হোটেল রিপোর্ট</title>
-
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
-
 <style>
 body{font-family:'Hind Siliguri',sans-serif;}
 </style>
 </head>
-
 <body class="bg-slate-200 p-4">
 <div class="max-w-5xl mx-auto bg-white shadow-xl p-4">
-
 <div class="flex justify-between mb-4">
 <h1 class="text-xl font-bold text-red-700">ভাতঘর হোটেল মাসিক রিপোর্ট</h1>
 <a href="index.html" class="bg-blue-600 text-white px-3 py-1 rounded">← হোম</a>
@@ -31,9 +27,7 @@ body{font-family:'Hind Siliguri',sans-serif;}
 
 <h2 class="font-bold mb-2">স্টাফ অনুযায়ী মোট বেতন</h2>
 <table class="w-full border mb-6">
-<thead class="bg-gray-200">
-<tr><th class="p-2">স্টাফ</th><th class="p-2">মোট বেতন</th></tr>
-</thead>
+<thead class="bg-gray-200"><tr><th class="p-2">স্টাফ</th><th class="p-2">মোট বেতন</th></tr></thead>
 <tbody id="staffTable"></tbody>
 </table>
 
@@ -41,14 +35,12 @@ body{font-family:'Hind Siliguri',sans-serif;}
 <canvas id="salesChart" height="120"></canvas>
 
 <button onclick="exportCSV()" class="mt-4 bg-green-600 text-white px-4 py-2 rounded">CSV Export</button>
-
 </div>
 
-<script type="module">
-import {initializeApp} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import {getDatabase,ref,onValue} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-
-const firebaseConfig={
+<script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js"></script>
+<script>
+const firebaseConfig = {
 apiKey:"AIzaSyCoZQQfywLU21JgrxXK82PYRQE2eKUwND4",
 authDomain:"vatghor-ledger-81366.firebaseapp.com",
 databaseURL:"https://vatghor-ledger-81366-default-rtdb.firebaseio.com",
@@ -57,83 +49,55 @@ storageBucket:"vatghor-ledger-81366.appspot.com",
 messagingSenderId:"639005808868",
 appId:"1:639005808868:web:aa77be07aaa0264fd8f4f1"
 };
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
 
-const app=initializeApp(firebaseConfig);
-const db=getDatabase(app);
+let totalInc=0,totalExp=0,totalRent=0;
+let staffTotals={},rows=[],dailySales={};
 
-const month = new Date().toISOString().slice(0,7);
-let totalInc=0, totalExp=0, totalRent=0;
-let staffTotals={}, rows=[], dailySales={};
+db.ref("ledgers").on("value",snap=>{
+totalInc=0;totalExp=0;totalRent=0;staffTotals={};rows=[];dailySales={};
 
-// Load ledger
-onValue(ref(db,"ledgers"),snap=>{
-  totalInc=0; totalExp=0; totalRent=0;
-  staffTotals={}; rows=[]; dailySales={};
+snap.forEach(day=>{
+day.forEach(c=>{
+const d=c.val(); rows.push([day.key,d.name,d.amount,d.type]);
+if(d.type==="income"){totalInc+=d.amount; dailySales[day.key]=(dailySales[day.key]||0)+d.amount;}
+if(d.type==="expense"||d.type==="staff_salary"){totalExp+=d.amount;}
+if(d.type==="shop_rent"){totalExp+=d.amount; totalRent+=d.amount;}
+if(d.type==="staff_salary"){staffTotals[d.name]=(staffTotals[d.name]||0)+d.amount;}
+});
+});
 
-  snap.forEach(day=>{
-    // Check if day is in current month
-    if(day.key.startsWith(month)){
-      let dayIncome=0;
+// Update totals
+document.getElementById("totalIncome").innerText="৳ "+totalInc;
+document.getElementById("totalExpense").innerText="৳ "+totalExp;
+document.getElementById("totalRent").innerText="৳ "+totalRent;
+const profit=totalInc-totalExp;
+const plEl=document.getElementById("profitLoss");
+plEl.innerText="৳ "+profit;
+plEl.classList.remove("text-red-600","text-green-600");
+plEl.classList.add(profit<0?"text-red-600":"text-green-600");
 
-      day.forEach(c=>{
-        const d=c.val();
-        const id=c.key;
-        rows.push([day.key,d.name,d.amount,d.type]);
+// Staff Table
+const staffTable=document.getElementById("staffTable");
+staffTable.innerHTML="";
+Object.keys(staffTotals).forEach(name=>{
+const tr=document.createElement("tr");
+tr.innerHTML=`<td class="p-2">👤 ${name}</td><td class="p-2 font-bold">৳ ${staffTotals[name]}</td>`;
+staffTable.appendChild(tr);
+});
 
-        if(d.type==="income"){ totalInc+=d.amount; dayIncome+=d.amount; }
-        if(d.type==="expense"||d.type==="staff_salary"){ totalExp+=d.amount; }
-        if(d.type==="shop_rent"){ totalExp+=d.amount; totalRent+=d.amount; }
-
-        if(d.type==="staff_salary"){
-          if(!staffTotals[d.name]) staffTotals[d.name]=0;
-          staffTotals[d.name]+=d.amount;
-        }
-      });
-
-      dailySales[day.key]=dayIncome;
-    }
-  });
-
-  document.getElementById("totalIncome").innerText="৳ "+totalInc;
-  document.getElementById("totalExpense").innerText="৳ "+totalExp;
-  document.getElementById("totalRent").innerText="৳ "+totalRent;
-
-  const profit = totalInc-totalExp;
-  const plEl = document.getElementById("profitLoss");
-  plEl.innerText="৳ "+profit;
-  plEl.classList.remove("text-red-600","text-green-600");
-  plEl.classList.add(profit<0?"text-red-600":"text-green-600");
-
-  // Staff Table
-  const staffTable=document.getElementById("staffTable");
-  staffTable.innerHTML="";
-  Object.keys(staffTotals).forEach(name=>{
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td class="p-2">👤 ${name}</td><td class="p-2 font-bold">৳ ${staffTotals[name]}</td>`;
-    staffTable.appendChild(tr);
-  });
-
-  // Chart
-  const ctx=document.getElementById("salesChart");
-  new Chart(ctx,{
-    type:"bar",
-    data:{
-      labels:Object.keys(dailySales),
-      datasets:[{label:"দৈনিক বিক্রি",data:Object.values(dailySales),backgroundColor:"#22c55e"}]
-    },
-    options:{responsive:true}
-  });
+// Chart
+const ctx=document.getElementById("salesChart");
+new Chart(ctx,{type:"bar",data:{labels:Object.keys(dailySales),datasets:[{label:"দৈনিক বিক্রি",data:Object.values(dailySales),backgroundColor:"#22c55e"}]},options:{responsive:true}});
 });
 
 // CSV Export
-window.exportCSV=function(){
-  let csv="Date,Name,Amount,Type\n";
-  rows.forEach(r=>{ csv+=r.join(",")+"\n"; });
-  const blob=new Blob([csv]);
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="vatghor-report.csv";
-  a.click();
+function exportCSV(){
+let csv="Date,Name,Amount,Type\n";
+rows.forEach(r=>{csv+=r.join(",")+"\n";});
+const blob=new Blob([csv]);const a=document.createElement("a");
+a.href=URL.createObjectURL(blob);a.download="vatghor-report.csv";a.click();
 }
 </script>
 </body>
