@@ -1,106 +1,52 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>ভাতঘর হোটেল রিপোর্ট</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
 
 <style>
 body{font-family:'Hind Siliguri',sans-serif;}
 </style>
-
 </head>
 
 <body class="bg-slate-200 p-4">
-
 <div class="max-w-5xl mx-auto bg-white shadow-xl p-4">
 
 <div class="flex justify-between mb-4">
-
-<h1 class="text-xl font-bold text-red-700">
-ভাতঘর হোটেল মাসিক রিপোর্ট
-</h1>
-
-<a href="index.html"
-class="bg-blue-600 text-white px-3 py-1 rounded">
-← হোম
-</a>
-
+<h1 class="text-xl font-bold text-red-700">ভাতঘর হোটেল মাসিক রিপোর্ট</h1>
+<a href="index.html" class="bg-blue-600 text-white px-3 py-1 rounded">← হোম</a>
 </div>
 
 <div class="grid grid-cols-4 gap-3 text-center mb-6">
-
-<div class="bg-green-100 p-3 rounded">
-<p>মোট আয়</p>
-<p id="totalIncome" class="font-bold text-lg">৳ ০</p>
+<div class="bg-green-100 p-3 rounded"><p>মোট আয়</p><p id="totalIncome" class="font-bold text-lg">৳ ০</p></div>
+<div class="bg-red-100 p-3 rounded"><p>মোট ব্যয়</p><p id="totalExpense" class="font-bold text-lg">৳ ০</p></div>
+<div class="bg-purple-100 p-3 rounded"><p>মোট ভাড়া</p><p id="totalRent" class="font-bold text-lg">৳ ০</p></div>
+<div class="bg-yellow-100 p-3 rounded"><p>লাভ / ক্ষতি</p><p id="profitLoss" class="font-bold text-lg">৳ ০</p></div>
 </div>
 
-<div class="bg-red-100 p-3 rounded">
-<p>মোট ব্যয়</p>
-<p id="totalExpense" class="font-bold text-lg">৳ ০</p>
-</div>
-
-<div class="bg-purple-100 p-3 rounded">
-<p>মোট ভাড়া</p>
-<p id="totalRent" class="font-bold text-lg">৳ ০</p>
-</div>
-
-<div class="bg-yellow-100 p-3 rounded">
-<p>লাভ / ক্ষতি</p>
-<p id="profitLoss" class="font-bold text-lg">৳ ০</p>
-</div>
-
-</div>
-
-<h2 class="font-bold mb-2">
-স্টাফ অনুযায়ী মোট বেতন
-</h2>
-
+<h2 class="font-bold mb-2">স্টাফ অনুযায়ী মোট বেতন</h2>
 <table class="w-full border mb-6">
-
 <thead class="bg-gray-200">
-
-<tr>
-<th class="p-2">স্টাফ</th>
-<th class="p-2">মোট বেতন</th>
-</tr>
-
+<tr><th class="p-2">স্টাফ</th><th class="p-2">মোট বেতন</th></tr>
 </thead>
-
 <tbody id="staffTable"></tbody>
-
 </table>
 
-<h2 class="font-bold mb-2">
-দৈনিক বিক্রি গ্রাফ
-</h2>
-
+<h2 class="font-bold mb-2">দৈনিক বিক্রি গ্রাফ</h2>
 <canvas id="salesChart" height="120"></canvas>
 
-<button onclick="exportCSV()"
-class="mt-4 bg-green-600 text-white px-4 py-2 rounded">
-
-CSV Export
-
-</button>
+<button onclick="exportCSV()" class="mt-4 bg-green-600 text-white px-4 py-2 rounded">CSV Export</button>
 
 </div>
 
 <script type="module">
-
-import {initializeApp}
-from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-
-import {getDatabase,ref,onValue}
-from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+import {initializeApp} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import {getDatabase,ref,onValue} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
 const firebaseConfig={
 apiKey:"AIzaSyCoZQQfywLU21JgrxXK82PYRQE2eKUwND4",
@@ -115,139 +61,80 @@ appId:"1:639005808868:web:aa77be07aaa0264fd8f4f1"
 const app=initializeApp(firebaseConfig);
 const db=getDatabase(app);
 
-const month=new Date().toISOString().slice(0,7);
+const month = new Date().toISOString().slice(0,7);
+let totalInc=0, totalExp=0, totalRent=0;
+let staffTotals={}, rows=[], dailySales={};
 
-let totalInc=0;
-let totalExp=0;
-let totalRent=0;
-
-let staffTotals={};
-
-let rows=[];
-let dailySales={};
-
+// Load ledger
 onValue(ref(db,"ledgers"),snap=>{
+  totalInc=0; totalExp=0; totalRent=0;
+  staffTotals={}; rows=[]; dailySales={};
 
-snap.forEach(day=>{
+  snap.forEach(day=>{
+    // Check if day is in current month
+    if(day.key.startsWith(month)){
+      let dayIncome=0;
 
-if(day.key.startsWith(month)){
+      day.forEach(c=>{
+        const d=c.val();
+        const id=c.key;
+        rows.push([day.key,d.name,d.amount,d.type]);
 
-let dayIncome=0;
+        if(d.type==="income"){ totalInc+=d.amount; dayIncome+=d.amount; }
+        if(d.type==="expense"||d.type==="staff_salary"){ totalExp+=d.amount; }
+        if(d.type==="shop_rent"){ totalExp+=d.amount; totalRent+=d.amount; }
 
-day.forEach(c=>{
+        if(d.type==="staff_salary"){
+          if(!staffTotals[d.name]) staffTotals[d.name]=0;
+          staffTotals[d.name]+=d.amount;
+        }
+      });
 
-const d=c.val();
+      dailySales[day.key]=dayIncome;
+    }
+  });
 
-rows.push([day.key,d.name,d.amount,d.type]);
+  document.getElementById("totalIncome").innerText="৳ "+totalInc;
+  document.getElementById("totalExpense").innerText="৳ "+totalExp;
+  document.getElementById("totalRent").innerText="৳ "+totalRent;
 
-if(d.type==="income"){
-totalInc+=d.amount;
-dayIncome+=d.amount;
-}
+  const profit = totalInc-totalExp;
+  const plEl = document.getElementById("profitLoss");
+  plEl.innerText="৳ "+profit;
+  plEl.classList.remove("text-red-600","text-green-600");
+  plEl.classList.add(profit<0?"text-red-600":"text-green-600");
 
-if(d.type==="expense"||d.type==="staff_salary"){
-totalExp+=d.amount;
-}
+  // Staff Table
+  const staffTable=document.getElementById("staffTable");
+  staffTable.innerHTML="";
+  Object.keys(staffTotals).forEach(name=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td class="p-2">👤 ${name}</td><td class="p-2 font-bold">৳ ${staffTotals[name]}</td>`;
+    staffTable.appendChild(tr);
+  });
 
-if(d.type==="shop_rent"){
-totalExp+=d.amount;
-totalRent+=d.amount;
-}
-
-if(d.type==="staff_salary"){
-
-if(!staffTotals[d.name])
-staffTotals[d.name]=0;
-
-staffTotals[d.name]+=d.amount;
-
-}
-
+  // Chart
+  const ctx=document.getElementById("salesChart");
+  new Chart(ctx,{
+    type:"bar",
+    data:{
+      labels:Object.keys(dailySales),
+      datasets:[{label:"দৈনিক বিক্রি",data:Object.values(dailySales),backgroundColor:"#22c55e"}]
+    },
+    options:{responsive:true}
+  });
 });
 
-dailySales[day.key]=dayIncome;
-
-}
-
-});
-
-totalIncome.innerText="৳ "+totalInc;
-totalExpense.innerText="৳ "+totalExp;
-totalRent.innerText="৳ "+totalRent;
-
-const profit=totalInc-totalExp;
-
-profitLoss.innerText="৳ "+profit;
-
-if(profit<0)
-profitLoss.classList.add("text-red-600");
-else
-profitLoss.classList.add("text-green-600");
-
-staffTable.innerHTML="";
-
-Object.keys(staffTotals).forEach(name=>{
-
-const tr=document.createElement("tr");
-
-tr.innerHTML=`
-
-<td class="p-2">👤 ${name}</td>
-
-<td class="p-2 font-bold">
-৳ ${staffTotals[name]}
-</td>
-
-`;
-
-staffTable.appendChild(tr);
-
-});
-
-const labels=Object.keys(dailySales);
-const data=Object.values(dailySales);
-
-new Chart(document.getElementById("salesChart"),{
-
-type:"bar",
-
-data:{
-labels:labels,
-datasets:[{
-label:"দৈনিক বিক্রি",
-data:data
-}]
-},
-
-options:{responsive:true}
-
-});
-
-});
-
+// CSV Export
 window.exportCSV=function(){
-
-let csv="Date,Name,Amount,Type\n";
-
-rows.forEach(r=>{
-
-csv+=r.join(",")+"\n";
-
-});
-
-const blob=new Blob([csv]);
-
-const a=document.createElement("a");
-
-a.href=URL.createObjectURL(blob);
-
-a.download="vatghor-report.csv";
-
-a.click();
-
+  let csv="Date,Name,Amount,Type\n";
+  rows.forEach(r=>{ csv+=r.join(",")+"\n"; });
+  const blob=new Blob([csv]);
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="vatghor-report.csv";
+  a.click();
 }
-
 </script>
-
 </body>
 </html>
