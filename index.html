@@ -5,16 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ভাতঘর হোটেল ডেইলি লেজার</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
 body { font-family:'Hind Siliguri',sans-serif; }
 @media print { .no-print { display:none!important; } }
 #loginOverlay { backdrop-filter:blur(8px); }
 .item-row:hover .action-btns { opacity:1; }
+.text-staff { background-color:#dbeafe; color:#1e3a8a; padding:2px 4px; border-radius:4px; }
+.text-rent { background-color:#ede9fe; color:#5b21b6; padding:2px 4px; border-radius:4px; }
 .warning { color:red; font-weight:bold; }
-.text-staff { color:#1D4ED8; background:#DBEAFE; font-weight:bold; padding:0 4px; border-radius:4px; }
-.text-rent { color:#7C3AED; background:#EDE9FE; font-weight:bold; padding:0 4px; border-radius:4px; }
 </style>
 </head>
 <body class="bg-slate-200 min-h-screen p-3">
@@ -63,8 +62,6 @@ body { font-family:'Hind Siliguri',sans-serif; }
   <select id="type" class="border p-2 rounded">
     <option value="income">নগদ বিক্রয়</option>
     <option value="expense">নগদ খরচ</option>
-    <option value="due_income">বাকী পাওনা</option>
-    <option value="due_expense">বাকী দেনা</option>
     <option value="staff_salary">স্টাফ বেতন</option>
     <option value="shop_rent">দোকান ভাড়া</option>
   </select>
@@ -106,9 +103,6 @@ body { font-family:'Hind Siliguri',sans-serif; }
   <p id="warningRent" class="warning"></p>
 </div>
 
-<!-- CHART -->
-<canvas id="salesChart" class="my-6 bg-white p-2 rounded shadow"></canvas>
-
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import {getDatabase,ref,push,set,onValue,remove} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
@@ -120,6 +114,7 @@ const db=getDatabase(app);
 const PIN="3481"; 
 const DELETE_PIN="8019";
 
+// বাংলা/ইংরেজি সংখ্যা → number
 function parseNumber(input){
   if(!input) return 0;
   const banglaDigits='০১২৩৪৫৬৭৮৯';
@@ -132,6 +127,7 @@ function parseNumber(input){
   return isNaN(num)?0:num;
 }
 
+// number → বাংলা সংখ্যা
 function toBanglaNumber(input){
   const num=parseInt(input)||0;
   const banglaDigits='০১২৩৪৫৬৭৮৯';
@@ -145,6 +141,7 @@ loginBtn.onclick=()=>{
   if(pinInput.value===PIN){ loginOverlay.style.display="none"; mainApp.classList.remove("hidden"); loadData(); }
   else { attempts++; loginError.classList.remove("hidden"); }
 };
+
 logoutBtn.onclick=()=>location.reload();
 currentDate.innerText=new Date().toLocaleDateString("bn-BD");
 currentDay.innerText=new Date().toLocaleDateString("bn-BD",{weekday:"long"});
@@ -189,7 +186,7 @@ function loadData(){
   // Opening balance
   onValue(ref(db,"ledgers/"+yStr),snap=>{
     let ti=0,te=0;
-    snap.forEach(c=>{ const d=c.val(); if(d.type==="income") ti+=d.amount; if(d.type==="expense") te+=d.amount; });
+    snap.forEach(c=>{ const d=c.val(); if(d.type==="income") ti+=d.amount; if(d.type==="expense"||d.type==="staff_salary"||d.type==="shop_rent") te+=d.amount; });
     openingBalance.innerText=toBanglaNumber(ti-te);
   });
 
@@ -200,10 +197,11 @@ function loadData(){
 
     snap.forEach(c=>{
       const d=c.val(),id=c.key;
+
       if(d.type==="income") ti+=d.amount;
       if(d.type==="expense") te+=d.amount;
-      if(d.type==="staff_salary") dailySalary+=d.amount;
-      if(d.type==="shop_rent") dailyRent+=d.amount;
+      if(d.type==="staff_salary"){ dailySalary+=d.amount; te+=d.amount; }
+      if(d.type==="shop_rent"){ dailyRent+=d.amount; te+=d.amount; }
 
       let style="";
       if(d.type==="staff_salary"){ style="text-staff"; }
@@ -230,19 +228,11 @@ function loadData(){
     totalExp.innerText=toBanglaNumber(te);
     profitTotal.innerText=toBanglaNumber(ti-te);
     grandTotal.innerText=toBanglaNumber((parseInt(openingBalance.innerText)||0)+ti-te);
-    dailySalarySpan.innerText=toBanglaNumber(dailySalary);
-    dailyRentSpan.innerText=toBanglaNumber(dailyRent);
+    dailySalarySpan=document.getElementById("dailySalary"); dailySalarySpan.innerText=toBanglaNumber(dailySalary);
+    dailyRentSpan=document.getElementById("dailyRent"); dailyRentSpan.innerText=toBanglaNumber(dailyRent);
 
-    warningSalary.innerText = dailySalary==0?"স্টাফ বেতন বকেয়া নেই":"⚠️ স্টাফ বেতন বকেয়া!";
-    warningRent.innerText = dailyRent==0?"দোকান ভাড়া বকেয়া নেই":"⚠️ দোকান ভাড়া বকেয়া!";
-
-    const ctx=document.getElementById("salesChart").getContext("2d");
-    if(chart) chart.destroy();
-    chart=new Chart(ctx,{
-      type:'bar',
-      data:{labels:['Income','Expense','Staff Salary','Shop Rent'],datasets:[{label:'Daily Summary',data:[ti,te,dailySalary,dailyRent],backgroundColor:['#16a34a','#dc2626','#1e40af','#7c3aed']}]},
-      options:{responsive:true,plugins:{legend:{display:false}}}
-    });
+    warningSalary.innerText = dailySalary===0?"স্টাফ বেতন বকেয়া নেই":"⚠️ স্টাফ বেতন বকেয়া!";
+    warningRent.innerText = dailyRent===0?"দোকান ভাড়া বকেয়া নেই":"⚠️ দোকান ভাড়া বকেয়া!";
   });
 }
 
