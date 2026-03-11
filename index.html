@@ -13,6 +13,8 @@ body { font-family:'Hind Siliguri',sans-serif; }
 #loginOverlay { backdrop-filter:blur(8px); }
 .item-row:hover .action-btns { opacity:1; }
 .warning { color:red; font-weight:bold; }
+.text-staff { color:#1D4ED8; background:#DBEAFE; font-weight:bold; padding:0 4px; border-radius:4px; }
+.text-rent { color:#7C3AED; background:#EDE9FE; font-weight:bold; padding:0 4px; border-radius:4px; }
 </style>
 </head>
 <body class="bg-slate-200 min-h-screen p-3">
@@ -118,25 +120,25 @@ const db=getDatabase(app);
 const PIN="3481"; 
 const DELETE_PIN="8019";
 
-// Number conversion
 function parseNumber(input){
   if(!input) return 0;
   const banglaDigits='০১২৩৪৫৬৭৮৯';
   let converted='';
   for(let ch of input){
-    if(banglaDigits.includes(ch)) converted+=banglaDigits.indexOf(ch);
-    else if(!isNaN(parseInt(ch))) converted+=ch;
+    if(banglaDigits.includes(ch)){ converted+=banglaDigits.indexOf(ch); }
+    else if(!isNaN(parseInt(ch))){ converted+=ch; }
   }
   const num=parseFloat(converted);
   return isNaN(num)?0:num;
 }
+
 function toBanglaNumber(input){
   const num=parseInt(input)||0;
   const banglaDigits='০১২৩৪৫৬৭৮৯';
   return String(num).replace(/\d/g,d=>banglaDigits[d]);
 }
 
-// Login
+// LOGIN
 let attempts=0;
 loginBtn.onclick=()=>{
   if(attempts>=5){ alert("অনেকবার ভুল কোড দিয়েছেন"); return; }
@@ -147,7 +149,7 @@ logoutBtn.onclick=()=>location.reload();
 currentDate.innerText=new Date().toLocaleDateString("bn-BD");
 currentDay.innerText=new Date().toLocaleDateString("bn-BD",{weekday:"long"});
 
-// Add item
+// ADD ITEM
 addBtn.onclick=addItem;
 async function addItem(){
   const name=itemName.value;
@@ -159,7 +161,7 @@ async function addItem(){
   itemName.value=''; amount.value=''; itemName.focus();
 }
 
-// Delete / Edit
+// DELETE / EDIT
 window.deleteItem=id=>{
   const pin=prompt("আইটেম মুছতে Delete PIN দিন");
   if(pin!==DELETE_PIN){ alert("ভুল Delete PIN"); return; }
@@ -167,6 +169,7 @@ window.deleteItem=id=>{
   const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
   remove(ref(db,"ledgers/"+dateToUse+"/"+id));
 };
+
 window.editItem=(id,name,amount,type)=>{
   const newName=prompt("বিবরণ পরিবর্তন করুন",name);
   const newAmount=prompt("টাকা পরিবর্তন করুন",amount);
@@ -175,7 +178,7 @@ window.editItem=(id,name,amount,type)=>{
   set(ref(db,"ledgers/"+dateToUse+"/"+id),{name:newName,amount:parseNumber(newAmount),type,time:Date.now()});
 };
 
-// Load data
+// LOAD DATA
 let chart;
 function loadData(){
   const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
@@ -186,7 +189,7 @@ function loadData(){
   // Opening balance
   onValue(ref(db,"ledgers/"+yStr),snap=>{
     let ti=0,te=0;
-    snap.forEach(c=>{ const d=c.val(); if(d.type==="income"||d.type==="due_income") ti+=d.amount; if(d.type==="expense"||d.type==="due_expense"||d.type==="staff_salary"||d.type==="shop_rent") te+=d.amount; });
+    snap.forEach(c=>{ const d=c.val(); if(d.type==="income") ti+=d.amount; if(d.type==="expense") te+=d.amount; });
     openingBalance.innerText=toBanglaNumber(ti-te);
   });
 
@@ -194,15 +197,22 @@ function loadData(){
   onValue(ref(db,"ledgers/"+todayStr),snap=>{
     let ti=0,te=0,dailySalary=0,dailyRent=0;
     let incomeHtml='',expenseHtml='';
+
     snap.forEach(c=>{
       const d=c.val(),id=c.key;
-      if(d.type==="income"||d.type==="due_income") ti+=d.amount;
-      if(d.type==="expense"||d.type==="due_expense") te+=d.amount;
-      if(d.type==="staff_salary") { te+=d.amount; dailySalary+=d.amount; }
-      if(d.type==="shop_rent") { te+=d.amount; dailyRent+=d.amount; }
+      if(d.type==="income") ti+=d.amount;
+      if(d.type==="expense") te+=d.amount;
+      if(d.type==="staff_salary") dailySalary+=d.amount;
+      if(d.type==="shop_rent") dailyRent+=d.amount;
+
+      let style="",icon="";
+      if(d.type==="income"){ style=""; icon="💰"; }
+      if(d.type==="expense"){ style=""; icon="💸"; }
+      if(d.type==="staff_salary"){ style="text-staff"; icon="👤"; }
+      if(d.type==="shop_rent"){ style="text-rent"; icon="🏠"; }
 
       const row=`<div class="flex justify-between p-2 border-b item-row">
-        <span>${d.name}</span>
+        <span class="${style}">${icon} ${d.name}</span>
         <span>৳ ${toBanglaNumber(d.amount)}
           <span class="action-btns opacity-0 ml-2">
             <button onclick="editItem('${id}','${d.name}','${d.amount}','${d.type}')">✏️</button>
@@ -210,7 +220,8 @@ function loadData(){
           </span>
         </span>
       </div>`;
-      if(d.type==="income"||d.type==="due_income") incomeHtml+=row;
+
+      if(d.type==="income") incomeHtml+=row; 
       else expenseHtml+=row;
     });
 
@@ -220,11 +231,9 @@ function loadData(){
     totalInc.innerText=toBanglaNumber(ti);
     totalExp.innerText=toBanglaNumber(te);
     profitTotal.innerText=toBanglaNumber(ti-te);
-    const opening=parseNumber(openingBalance.innerText);
-    grandTotal.innerText=toBanglaNumber(opening+ti-te);
-
-    dailySalarySpan=document.getElementById("dailySalary"); dailySalarySpan.innerText=toBanglaNumber(dailySalary);
-    dailyRentSpan=document.getElementById("dailyRent"); dailyRentSpan.innerText=toBanglaNumber(dailyRent);
+    grandTotal.innerText=toBanglaNumber((parseInt(openingBalance.innerText)||0)+ti-te);
+    dailySalarySpan.innerText=toBanglaNumber(dailySalary);
+    dailyRentSpan.innerText=toBanglaNumber(dailyRent);
 
     warningSalary.innerText = dailySalary==0?"স্টাফ বেতন বকেয়া নেই":"⚠️ স্টাফ বেতন বকেয়া!";
     warningRent.innerText = dailyRent==0?"দোকান ভাড়া বকেয়া নেই":"⚠️ দোকান ভাড়া বকেয়া!";
@@ -233,11 +242,12 @@ function loadData(){
     if(chart) chart.destroy();
     chart=new Chart(ctx,{
       type:'bar',
-      data:{labels:['Income','Expense','Staff Salary','Shop Rent'],datasets:[{label:'Daily Summary',data:[ti,te,dailySalary,dailyRent],backgroundColor:['#16a34a','#dc2626','#f59e0b','#3b82f6']}]},
+      data:{labels:['Income','Expense','Staff Salary','Shop Rent'],datasets:[{label:'Daily Summary',data:[ti,te,dailySalary,dailyRent],backgroundColor:['#16a34a','#dc2626','#1e40af','#7c3aed']}]},
       options:{responsive:true,plugins:{legend:{display:false}}}
     });
   });
 }
+
 customDateInput.addEventListener("change",loadData);
 
 // CSV EXPORT
@@ -254,5 +264,6 @@ exportBtn.onclick=()=>{
 
 loadData();
 </script>
+
 </body>
 </html>
