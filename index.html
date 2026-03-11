@@ -1,415 +1,258 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>ভাত ঘর হোটেল লেজার</title>
-
+<title>ভাতঘর হোটেল ডেইলি লেজার</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap" rel="stylesheet">
-
 <style>
-
-body{
-font-family:'Hind Siliguri',sans-serif;
-}
-
-.item:hover .btns{
-opacity:1;
-}
-
-.btns{
-opacity:0;
-}
-
-.blue{
-color:#0284c7;
-font-weight:bold;
-}
-
-.purple{
-color:#7c3aed;
-font-weight:bold;
-}
-
-.orange{
-color:#ea580c;
-font-weight:bold;
-}
-
-.darkgreen{
-color:#065f46;
-font-weight:bold;
-}
-
+body { font-family:'Hind Siliguri',sans-serif; }
+@media print { .no-print { display:none!important; } }
+#loginOverlay { backdrop-filter:blur(8px); }
+.item-row:hover .action-btns { opacity:1; }
+.warning { color:red; font-weight:bold; }
 </style>
-
 </head>
-
-<body class="bg-slate-200 p-3">
+<body class="bg-slate-200 min-h-screen p-3">
 
 <!-- LOGIN -->
-
-<div id="login" class="fixed inset-0 bg-black/70 flex items-center justify-center">
-
-<div class="bg-white p-8 rounded-xl text-center w-80">
-
-<h1 class="text-xl font-black text-red-700 mb-3">
-ভাত ঘর হোটেল লেজার
-</h1>
-
-<input id="pin"
-type="password"
-placeholder="প্রবেশ কোড"
-class="border p-3 w-full text-center text-xl rounded mb-3">
-
-<button onclick="login()"
-class="bg-blue-600 text-white w-full py-2 rounded">
-প্রবেশ
-</button>
-
+<div id="loginOverlay" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+  <div class="bg-white p-8 rounded-xl shadow-xl w-80 text-center">
+    <h2 class="text-2xl font-black text-red-700 mb-2">ভাতঘর হোটেল ডেইলি লেজার</h2>
+    <p class="text-sm mb-4">প্রবেশ কোড দিন</p>
+    <input id="pinInput" type="password" maxlength="4" class="w-full border p-3 text-center text-3xl rounded mb-4">
+    <button id="loginBtn" class="bg-blue-600 text-white w-full py-3 rounded font-bold">প্রবেশ করুন</button>
+    <p id="loginError" class="text-red-500 text-sm mt-3 hidden">ভুল কোড</p>
+  </div>
 </div>
 
-</div>
-
-<div id="app" class="max-w-4xl mx-auto bg-white shadow-xl hidden">
+<!-- MAIN APP -->
+<div id="mainApp" class="max-w-4xl mx-auto bg-white shadow-xl hidden">
 
 <!-- HEADER -->
-
-<div class="p-4 text-center border-b">
-
-<h1 class="text-2xl font-black text-red-700">
-ভাত ঘর হোটেল রেস্টুরেন্ট এন্ড মিষ্টান্ন
-</h1>
-
-<p id="today" class="text-sm mt-1"></p>
-
+<div class="p-4 border-b text-center">
+  <h1 class="text-2xl font-black text-red-700">ভাত ঘর হোটেল রেস্টুরেন্ট এন্ড মিষ্টান্ন</h1>
+  <div class="flex justify-between mt-3 text-sm font-bold">
+    <div>তারিখ: <span id="currentDate"></span></div>
+    <div>বার: <span id="currentDay"></span></div>
+  </div>
 </div>
 
-<!-- ACTION -->
+<!-- ACTION BAR -->
+<div class="p-3 flex justify-between bg-slate-100 no-print">
+  <button onclick="window.print()" class="bg-slate-700 text-white px-3 py-1 rounded">প্রিন্ট</button>
+  <a href="report.html" class="bg-emerald-600 text-white px-3 py-1 rounded">মাসিক রিপোর্ট</a>
+  <button id="exportBtn" class="bg-emerald-600 text-white px-3 py-1 rounded">Export CSV</button>
+  <button id="logoutBtn" class="bg-red-600 text-white px-3 py-1 rounded">লগআউট</button>
+</div>
 
-<div class="flex gap-2 p-3 bg-slate-100">
+<!-- CUSTOM DATE -->
+<div class="p-3 flex gap-2 items-center no-print">
+  <label class="text-xs font-bold">তারিখ:</label>
+  <input type="date" id="customDateInput" class="border p-2 rounded">
+</div>
 
-<input id="name"
-placeholder="বিবরণ / স্টাফ নাম"
-class="border p-2 rounded flex-1">
-
-<input id="money"
-placeholder="টাকা"
-class="border p-2 rounded w-32">
-
-<select id="type" class="border p-2 rounded">
-
-<option value="income">নগদ বিক্রয়</option>
-
-<option value="expense">নগদ খরচ</option>
-
-<option value="staff">স্টাফ বেতন</option>
-
-<option value="rent">দোকান ভাড়া</option>
-
-<option value="credit_buy">বাকিতে মাল ক্রয়</option>
-
-<option value="credit_sell">বাকিতে বিক্রি</option>
-
-</select>
-
-<button onclick="add()"
-class="bg-blue-600 text-white px-4 rounded">
-যোগ
-</button>
-
+<!-- ADD ITEM -->
+<div class="p-3 flex flex-wrap gap-2 border-b bg-slate-50 no-print">
+  <input id="itemName" placeholder="বিবরণ" class="border p-2 rounded flex-1">
+  <input id="amount" type="text" placeholder="টাকা" class="border p-2 rounded w-32">
+  <select id="type" class="border p-2 rounded">
+    <option value="income">নগদ বিক্রয়</option>
+    <option value="expense">নগদ খরচ</option>
+    <option value="due_income">বাকী পাওনা</option>
+    <option value="due_expense">বাকী দেনা</option>
+    <option value="staff_salary">স্টাফ বেতন</option>
+    <option value="shop_rent">দোকান ভাড়া</option>
+  </select>
+  <button id="addBtn" class="bg-blue-600 text-white px-4 rounded">যোগ</button>
 </div>
 
 <!-- LIST -->
-
 <div class="grid grid-cols-2">
-
-<div>
-
-<div class="bg-green-100 text-center p-2 font-bold">
-জমা
+  <div>
+    <div class="bg-green-100 text-center p-2 font-bold">জমা / পাওনা</div>
+    <div id="incomeList"></div>
+  </div>
+  <div>
+    <div class="bg-red-100 text-center p-2 font-bold">ব্যয় / দেনা</div>
+    <div id="expenseList"></div>
+  </div>
 </div>
 
-<div id="income"></div>
-
+<!-- DAILY & MONTHLY TOTALS -->
+<div class="grid grid-cols-2 text-center bg-slate-800 text-white p-4">
+  <div><p class="text-xs">মোট বিক্রয়</p><p id="totalInc" class="text-lg font-bold">0</p></div>
+  <div><p class="text-xs">মোট খরচ</p><p id="totalExp" class="text-lg font-bold">0</p></div>
 </div>
-
-<div>
-
-<div class="bg-red-100 text-center p-2 font-bold">
-ব্যয়
-</div>
-
-<div id="expense"></div>
-
-</div>
-
-</div>
-
-<!-- TOTAL -->
 
 <div class="grid grid-cols-3 text-center bg-slate-900 text-white p-4">
-
-<div>
-
-<p class="text-xs">মোট বিক্রয়</p>
-
-<p id="tincome" class="font-bold text-green-400">
-0
-</p>
-
+  <div><p class="text-xs">সাবেক ক্যাশ</p><p id="openingBalance" class="text-lg text-blue-400 font-bold">0</p></div>
+  <div><p class="text-xs">আজকের লাভ</p><p id="profitTotal" class="text-lg text-green-400 font-bold">0</p></div>
+  <div><p class="text-xs">মোট ক্যাশ</p><p id="grandTotal" class="text-lg text-yellow-400 font-bold">0</p></div>
 </div>
 
-<div>
-
-<p class="text-xs">মোট ব্যয়</p>
-
-<p id="texpense" class="font-bold text-red-400">
-0
-</p>
-
+<!-- STAFF SALARY & SHOP RENT SUMMARY -->
+<div class="p-4 bg-yellow-100 text-center">
+  <p class="font-bold">স্টাফ বেতন & দোকান ভাড়া</p>
+  <p>ডেইলি স্টাফ বেতন: <span id="dailySalary">0</span></p>
+  <p>মাসিক স্টাফ বেতন: <span id="monthlySalary">0</span></p>
+  <p>ডেইলি দোকান ভাড়া: <span id="dailyRent">0</span></p>
+  <p>মাসিক দোকান ভাড়া: <span id="monthlyRent">0</span></p>
+  <p id="warningSalary" class="warning"></p>
+  <p id="warningRent" class="warning"></p>
 </div>
 
-<div>
-
-<p class="text-xs">লাভ</p>
-
-<p id="profit" class="font-bold text-yellow-400">
-0
-</p>
-
-</div>
-
-</div>
-
-<canvas id="chart" class="p-4"></canvas>
-
-</div>
+<!-- CHART -->
+<canvas id="salesChart" class="my-6 bg-white p-2 rounded shadow"></canvas>
 
 <script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import {getDatabase,ref,push,set,onValue,remove} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
-import{initializeApp}
-from"https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-
-import{
-getDatabase,
-ref,
-push,
-onValue,
-remove
-}
-from"https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-
-const firebaseConfig={
-
-apiKey:"AIzaSyCoZQQfywLU21JgrxXK82PYRQE2eKUwND4",
-
-authDomain:"vatghor-ledger-81366.firebaseapp.com",
-
-databaseURL:"https://vatghor-ledger-81366-default-rtdb.firebaseio.com",
-
-projectId:"vatghor-ledger-81366",
-
-storageBucket:"vatghor-ledger-81366.appspot.com",
-
-messagingSenderId:"639005808868",
-
-appId:"1:639005808868:web:aa77be07aaa0264fd8f4f1"
-
-};
-
+const firebaseConfig={apiKey:"AIzaSyCoZQQfywLU21JgrxXK82PYRQE2eKUwND4",authDomain:"vatghor-ledger-81366.firebaseapp.com",databaseURL:"https://vatghor-ledger-81366-default-rtdb.firebaseio.com",projectId:"vatghor-ledger-81366",storageBucket:"vatghor-ledger-81366.appspot.com",messagingSenderId:"639005808868",appId:"1:639005808868:web:aa77be07aaa0264fd8f4f1"};
 const app=initializeApp(firebaseConfig);
-
 const db=getDatabase(app);
 
-const PIN="3481";
-
+const PIN="3481"; 
 const DELETE_PIN="8019";
 
-function login(){
-
-if(document.getElementById("pin").value===PIN){
-
-login.style.display="none";
-
-appDiv.classList.remove("hidden");
-
-load();
-
+// Number conversion
+function parseNumber(input){
+  if(!input) return 0;
+  const banglaDigits='০১২৩৪৫৬৭৮৯';
+  let converted='';
+  for(let ch of input){
+    if(banglaDigits.includes(ch)) converted+=banglaDigits.indexOf(ch);
+    else if(!isNaN(parseInt(ch))) converted+=ch;
+  }
+  const num=parseFloat(converted);
+  return isNaN(num)?0:num;
+}
+function toBanglaNumber(input){
+  const num=parseInt(input)||0;
+  const banglaDigits='০১২৩৪৫৬৭৮৯';
+  return String(num).replace(/\d/g,d=>banglaDigits[d]);
 }
 
+// Login
+let attempts=0;
+loginBtn.onclick=()=>{
+  if(attempts>=5){ alert("অনেকবার ভুল কোড দিয়েছেন"); return; }
+  if(pinInput.value===PIN){ loginOverlay.style.display="none"; mainApp.classList.remove("hidden"); loadData(); }
+  else { attempts++; loginError.classList.remove("hidden"); }
+};
+logoutBtn.onclick=()=>location.reload();
+currentDate.innerText=new Date().toLocaleDateString("bn-BD");
+currentDay.innerText=new Date().toLocaleDateString("bn-BD",{weekday:"long"});
+
+// Add item
+addBtn.onclick=addItem;
+async function addItem(){
+  const name=itemName.value;
+  let amt=parseNumber(amount.value);
+  const typeSelect=type.value;
+  const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
+  if(!name || !amt) return;
+  await push(ref(db,"ledgers/"+dateToUse),{name,amount:amt,type:typeSelect,time:Date.now()});
+  itemName.value=''; amount.value=''; itemName.focus();
 }
 
-window.login=login;
-
-const appDiv=document.getElementById("app");
-
-today.innerText=new Date().toLocaleDateString("bn-BD");
-
-function add(){
-
-const n=name.value;
-
-const m=parseFloat(money.value);
-
-const t=type.value;
-
-if(!n||!m)return;
-
-push(ref(db,"ledger"),{
-
-name:n,
-
-amount:m,
-
-type:t,
-
-time:Date.now()
-
-});
-
-name.value="";
-
-money.value="";
-
-}
-
-window.add=add;
-
-function load(){
-
-onValue(ref(db,"ledger"),snap=>{
-
-let ti=0;
-
-let te=0;
-
-let html1="";
-
-let html2="";
-
-snap.forEach(c=>{
-
-const d=c.val();
-
-const id=c.key;
-
-let style="";
-
-if(d.type==="staff")style="blue";
-
-if(d.type==="rent")style="purple";
-
-if(d.type==="credit_buy")style="orange";
-
-if(d.type==="credit_sell")style="darkgreen";
-
-const row=
-
-`<div class="flex justify-between border-b p-2 item">
-
-<span class="${style}">
-${d.name}
-</span>
-
-<span class="${style}">
-
-৳ ${d.amount}
-
-<span class="btns ml-2">
-
-<button onclick="del('${id}')">
-❌
-</button>
-
-</span>
-
-</span>
-
-</div>`;
-
-if(
-d.type==="income"||
-d.type==="credit_sell"
-){
-
-ti+=d.amount;
-
-html1+=row;
-
-}else{
-
-te+=d.amount;
-
-html2+=row;
-
-}
-
-});
-
-income.innerHTML=html1;
-
-expense.innerHTML=html2;
-
-tincome.innerText=ti;
-
-texpense.innerText=te;
-
-profit.innerText=ti-te;
-
-draw(ti,te);
-
-});
-
-}
-
-function del(id){
-
-const p=prompt("Delete PIN");
-
-if(p!==DELETE_PIN)return;
-
-remove(ref(db,"ledger/"+id));
-
-}
-
-window.del=del;
-
+// Delete / Edit
+window.deleteItem=id=>{
+  const pin=prompt("আইটেম মুছতে Delete PIN দিন");
+  if(pin!==DELETE_PIN){ alert("ভুল Delete PIN"); return; }
+  if(!confirm("নিশ্চিতভাবে মুছে ফেলবেন?")) return;
+  const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
+  remove(ref(db,"ledgers/"+dateToUse+"/"+id));
+};
+window.editItem=(id,name,amount,type)=>{
+  const newName=prompt("বিবরণ পরিবর্তন করুন",name);
+  const newAmount=prompt("টাকা পরিবর্তন করুন",amount);
+  if(!newName||!newAmount) return;
+  const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
+  set(ref(db,"ledgers/"+dateToUse+"/"+id),{name:newName,amount:parseNumber(newAmount),type,time:Date.now()});
+};
+
+// Load data
 let chart;
+function loadData(){
+  const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
+  const todayStr=dateToUse;
+  const yesterday=new Date(dateToUse); yesterday.setDate(yesterday.getDate()-1);
+  const yStr=yesterday.toISOString().split("T")[0];
 
-function draw(i,e){
+  // Opening balance
+  onValue(ref(db,"ledgers/"+yStr),snap=>{
+    let ti=0,te=0;
+    snap.forEach(c=>{ const d=c.val(); if(d.type==="income"||d.type==="due_income") ti+=d.amount; if(d.type==="expense"||d.type==="due_expense"||d.type==="staff_salary"||d.type==="shop_rent") te+=d.amount; });
+    openingBalance.innerText=toBanglaNumber(ti-te);
+  });
 
-const ctx=document.getElementById("chart");
+  // Today's entries
+  onValue(ref(db,"ledgers/"+todayStr),snap=>{
+    let ti=0,te=0,dailySalary=0,dailyRent=0;
+    let incomeHtml='',expenseHtml='';
+    snap.forEach(c=>{
+      const d=c.val(),id=c.key;
+      if(d.type==="income"||d.type==="due_income") ti+=d.amount;
+      if(d.type==="expense"||d.type==="due_expense") te+=d.amount;
+      if(d.type==="staff_salary") { te+=d.amount; dailySalary+=d.amount; }
+      if(d.type==="shop_rent") { te+=d.amount; dailyRent+=d.amount; }
 
-if(chart)chart.destroy();
+      const row=`<div class="flex justify-between p-2 border-b item-row">
+        <span>${d.name}</span>
+        <span>৳ ${toBanglaNumber(d.amount)}
+          <span class="action-btns opacity-0 ml-2">
+            <button onclick="editItem('${id}','${d.name}','${d.amount}','${d.type}')">✏️</button>
+            <button onclick="deleteItem('${id}')">❌</button>
+          </span>
+        </span>
+      </div>`;
+      if(d.type==="income"||d.type==="due_income") incomeHtml+=row;
+      else expenseHtml+=row;
+    });
 
-chart=new Chart(ctx,{
+    incomeList.innerHTML=incomeHtml||"<p class='p-3 text-center text-gray-400'>কিছু নেই</p>";
+    expenseList.innerHTML=expenseHtml||"<p class='p-3 text-center text-gray-400'>কিছু নেই</p>";
 
-type:"bar",
+    totalInc.innerText=toBanglaNumber(ti);
+    totalExp.innerText=toBanglaNumber(te);
+    profitTotal.innerText=toBanglaNumber(ti-te);
+    const opening=parseNumber(openingBalance.innerText);
+    grandTotal.innerText=toBanglaNumber(opening+ti-te);
 
-data:{
+    dailySalarySpan=document.getElementById("dailySalary"); dailySalarySpan.innerText=toBanglaNumber(dailySalary);
+    dailyRentSpan=document.getElementById("dailyRent"); dailyRentSpan.innerText=toBanglaNumber(dailyRent);
 
-labels:["Income","Expense"],
+    warningSalary.innerText = dailySalary==0?"স্টাফ বেতন বকেয়া নেই":"⚠️ স্টাফ বেতন বকেয়া!";
+    warningRent.innerText = dailyRent==0?"দোকান ভাড়া বকেয়া নেই":"⚠️ দোকান ভাড়া বকেয়া!";
 
-datasets:[{
-
-data:[i,e]
-
-}]
-
+    const ctx=document.getElementById("salesChart").getContext("2d");
+    if(chart) chart.destroy();
+    chart=new Chart(ctx,{
+      type:'bar',
+      data:{labels:['Income','Expense','Staff Salary','Shop Rent'],datasets:[{label:'Daily Summary',data:[ti,te,dailySalary,dailyRent],backgroundColor:['#16a34a','#dc2626','#f59e0b','#3b82f6']}]},
+      options:{responsive:true,plugins:{legend:{display:false}}}
+    });
+  });
 }
+customDateInput.addEventListener("change",loadData);
 
-});
+// CSV EXPORT
+exportBtn.onclick=()=>{
+  const rows=[['Name','Amount','Type','Date']];
+  const dateToUse=customDateInput.value || new Date().toISOString().split("T")[0];
+  onValue(ref(db,"ledgers/"+dateToUse),snap=>{
+    snap.forEach(c=>{ const d=c.val(); rows.push([d.name,d.amount,d.type,dateToUse]); });
+    let csvContent="data:text/csv;charset=utf-8,"+rows.map(e=>e.join(",")).join("\n");
+    const link=document.createElement("a"); link.href=encodeURI(csvContent);
+    link.download="ledger_"+dateToUse+".csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  },{once:true});
+};
 
-}
-
+loadData();
 </script>
-
 </body>
-
 </html>
