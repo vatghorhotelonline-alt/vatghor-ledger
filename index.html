@@ -205,14 +205,12 @@ function loadData(){
       if(d.type==="staff_salary") dailySalary+=d.amount;
       if(d.type==="shop_rent") dailyRent+=d.amount;
 
-      let style="",icon="";
-      if(d.type==="income"){ style=""; icon="💰"; }
-      if(d.type==="expense"){ style=""; icon="💸"; }
-      if(d.type==="staff_salary"){ style="text-staff"; icon="👤"; }
-      if(d.type==="shop_rent"){ style="text-rent"; icon="🏠"; }
+      let style="";
+      if(d.type==="staff_salary"){ style="text-staff"; }
+      if(d.type==="shop_rent"){ style="text-rent"; }
 
       const row=`<div class="flex justify-between p-2 border-b item-row">
-        <span class="${style}">${icon} ${d.name}</span>
+        <span class="${style}">${d.name}</span>
         <span>৳ ${toBanglaNumber(d.amount)}
           <span class="action-btns opacity-0 ml-2">
             <button onclick="editItem('${id}','${d.name}','${d.amount}','${d.type}')">✏️</button>
